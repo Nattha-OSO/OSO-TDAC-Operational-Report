@@ -12,8 +12,7 @@
 # ============================================================
 
 $ErrorActionPreference = "Stop"
-# *** CHANGE to your new TDAC Supabase project ref (Dashboard -> Project Settings -> Reference ID) ***
-$ProjectRef = "CHANGE_ME_project_ref"
+$ProjectRef = "lmoqbnztmwjwzowqeorz"
 
 Set-Location -LiteralPath $PSScriptRoot
 
