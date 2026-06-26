@@ -40,7 +40,7 @@ cd "D:\Ai Tools\Claude\OSO-TDAC Operational Report\Github"
 npx supabase login
 
 # 2) เชื่อมกับโปรเจกต์ (project-ref = ส่วนหน้าของ URL)
-npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase link --project-ref lmoqbnztmwjwzowqeorz
 
 # 3) ตั้งอีเมล admin เริ่มต้น (bootstrap) — บัญชีนี้จะเป็น admin ทันที
 npx supabase secrets set ADMIN_EMAILS="nattha.b@somapait.com"
@@ -55,8 +55,8 @@ npx supabase functions deploy register --no-verify-jwt
 > ถ้า login/link แบบ non-interactive ไม่ได้ ให้ใช้แทน:
 > ```powershell
 > $env:SUPABASE_ACCESS_TOKEN="<โทเค็นจริง sbp_... จาก https://supabase.com/dashboard/account/tokens>"
-> npx supabase functions deploy admin-users --project-ref YOUR_PROJECT_REF --use-api
-> npx supabase functions deploy register --project-ref YOUR_PROJECT_REF --use-api --no-verify-jwt
+> npx supabase functions deploy admin-users --project-ref lmoqbnztmwjwzowqeorz --use-api
+> npx supabase functions deploy register --project-ref lmoqbnztmwjwzowqeorz --use-api --no-verify-jwt
 > ```
 
 > ถ้าถาม project password ตอน link ให้ใส่รหัส database ที่ตั้งตอนสร้างโปรเจกต์

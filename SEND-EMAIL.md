@@ -22,9 +22,9 @@
 cd "D:\Ai Tools\Claude\OSO-TDAC Operational Report\Github"
 $env:SUPABASE_ACCESS_TOKEN="<โทเค็นจริง sbp_... จาก https://supabase.com/dashboard/account/tokens>"
 
-npx supabase secrets set BREVO_API_KEY="xkeysib-คีย์จริง" SENDER_EMAIL="nattha.b@somapait.com" SENDER_NAME="OSO-TDAC Operational Report" --project-ref YOUR_PROJECT_REF
+npx supabase secrets set BREVO_API_KEY="xkeysib-คีย์จริง" SENDER_EMAIL="nattha.b@somapait.com" SENDER_NAME="OSO-TDAC Operational Report" --project-ref lmoqbnztmwjwzowqeorz
 
-npx supabase functions deploy send-report --project-ref YOUR_PROJECT_REF --use-api
+npx supabase functions deploy send-report --project-ref lmoqbnztmwjwzowqeorz --use-api
 ```
 > ⚠️ `SENDER_EMAIL` ต้องเป็นอีเมลที่ **verify ใน Brevo แล้ว** เท่านั้น
 
@@ -34,6 +34,6 @@ npx supabase functions deploy send-report --project-ref YOUR_PROJECT_REF --use-a
 ---
 
 ## หมายเหตุ
-- ลบความลับ SMTP เก่าได้ (ไม่ใช้แล้ว): `npx supabase secrets unset SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM --project-ref YOUR_PROJECT_REF`
+- ลบความลับ SMTP เก่าได้ (ไม่ใช้แล้ว): `npx supabase secrets unset SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM --project-ref lmoqbnztmwjwzowqeorz`
 - ถ้ายังไม่ตั้งค่า/ยังไม่ deploy: ปุ่มส่งอีเมลจะขึ้นข้อความว่ายังไม่ได้ตั้งค่า — แต่ **ดูตัวอย่าง + บันทึก PDF เองได้ปกติ**
 - การส่งอีเมลถูกบันทึกใน Audit Log (admin ดูได้)
