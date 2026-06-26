@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='1';
+const APP_VERSION='2';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -207,12 +207,18 @@ function updatePubSummary(){
   const ks=readKiosks('pubKioskBody'),ready=kioskReadyCount(ks),notReady=KIOSK_COUNT-ready;
   $('pubChipReady').textContent=ready;$('pubChipNot').textContent=notReady;$('pubChipPct').textContent=Math.round(ready/KIOSK_COUNT*100)+'%';
 }
+let officerEmailMap={};
 async function loadPublicOfficers(){
   if(!sb)return;
-  try{const {data:o}=await sb.from('officers').select('name').eq('active',true).order('name');
-    const names=(o||[]).map(x=>x.name);
-    if($('pubOfficer'))$('pubOfficer').innerHTML='<option value="">— เลือกชื่อเจ้าหน้าที่ —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+  try{const {data:o}=await sb.from('officers').select('name,email').eq('active',true).order('name');
+    const list=o||[];officerEmailMap={};list.forEach(x=>{officerEmailMap[x.name]=x.email||'';});
+    if($('pubOfficer'))$('pubOfficer').innerHTML='<option value="">— เลือกชื่อเจ้าหน้าที่ —</option>'+list.map(x=>'<option value="'+esc(x.name)+'">'+esc(x.name)+'</option>').join('');
   }catch(e){}
+}
+// เลือกชื่อผู้ตรวจ -> เติมอีเมลจากทะเบียนให้อัตโนมัติ (ผู้ใช้ยังแก้/พิมพ์เองได้)
+function fillOfficerEmail(){
+  const inp=$('pubEmail');if(!inp)return;
+  inp.value=officerEmailMap[$('pubOfficer').value]||'';inp.classList.remove('invalidf');
 }
 async function submitPublic(){
   if(!sb)return toast('ยังไม่ได้ตั้งค่า Supabase',true);
@@ -221,30 +227,89 @@ async function submitPublic(){
   if(!date)return toast('กรุณาเลือกวันที่ตรวจสอบ',true);
   if(!shift)return toast('กรุณาเลือกรอบการตรวจสอบ',true);
   if(!officer)return toast('กรุณาเลือกชื่อเจ้าหน้าที่ผู้ตรวจสอบ',true);
-  const kiosks=readKiosks('pubKioskBody'),ready=kioskReadyCount(kiosks);
+  const kiosks=readKiosks('pubKioskBody'),ready=kioskReadyCount(kiosks),pct=Math.round(ready/KIOSK_COUNT*100);
+  const email=($('pubEmail').value||'').trim();
   const report={
     report_date:date,shift,officer,
     web_pc_ready:!!$('pubWebPc').checked,web_pc_remark:($('pubWebPcRemark').value||'').trim()||null,
     web_mobile_ready:!!$('pubWebMobile').checked,web_mobile_remark:($('pubWebMobileRemark').value||'').trim()||null,
     issue_log:($('pubIssue').value||'').trim()||null,
-    kiosks_total:KIOSK_COUNT,kiosks_ready:ready,readiness_pct:Math.round(ready/KIOSK_COUNT*100)
+    kiosks_total:KIOSK_COUNT,kiosks_ready:ready,readiness_pct:pct,kiosks
   };
-  report.kiosks=kiosks;
-  $('pubSubmit').disabled=true;
+  const btn=$('pubSubmit');btn.disabled=true;
   // ส่งทั้ง report + report_kiosks แบบ atomic ผ่านฟังก์ชัน SECURITY DEFINER (anon)
   const {error}=await sb.rpc('submit_tdac_report',{payload:report});
-  $('pubSubmit').disabled=false;
-  if(error)return toast('ส่งไม่สำเร็จ: '+error.message,true);
+  if(error){btn.disabled=false;return toast('ส่งไม่สำเร็จ: '+error.message,true);}
+  // สร้าง PDF (A4) แล้วส่งอีเมลให้เจ้าหน้าที่ OSO อัตโนมัติ — ถ้าล้มเหลวรายงานก็ถูกบันทึกแล้ว
+  if(email){
+    const disp={date,shift,officer,email,kiosks,webPc:report.web_pc_ready,webPcRemark:report.web_pc_remark,
+      webMobile:report.web_mobile_ready,webMobileRemark:report.web_mobile_remark,issue:report.issue_log,ready,total:KIOSK_COUNT,pct};
+    btn.innerHTML='<span class="btn-spin"></span>กำลังสร้าง PDF และส่งอีเมล...';
+    try{
+      const pdf=await generatePublicPdf(disp);
+      if(pdf){
+        const msg='เรียน '+officer+'\n\nแนบไฟล์รายงานการตรวจสอบระบบ TDAC ประจำ '+dispDate(date)+' รอบ '+shift+
+          '\nความพร้อม (Readiness): '+pct+'%  ('+ready+'/'+KIOSK_COUNT+' เครื่องพร้อมใช้งาน)'+
+          '\n\nระบบ OSO-TDAC Operational Report';
+        const r=await callFn('send-public-report',{to:email,subject:'รายงานการตรวจสอบระบบ TDAC '+dispDate(date)+' ('+shift+')',filename:pdf.filename,pdfBase64:pdf.base64,message:msg});
+        if(r.error)toast('บันทึกรายงานแล้ว แต่ส่งอีเมลไม่สำเร็จ: '+r.error,true);
+        else toast('ส่งรายงาน PDF ไปที่ '+email+' แล้ว ✓');
+      }
+    }catch(e){toast('บันทึกรายงานแล้ว แต่สร้าง/ส่ง PDF ไม่สำเร็จ: '+((e&&e.message)||e),true);}
+  }
+  btn.disabled=false;btn.innerHTML='✓ ส่งรายงานการตรวจสอบ';
   $('pubForm').style.display='none';$('pubThanks').classList.remove('hidden');window.scrollTo(0,0);
 }
 function resetPublic(){
-  $('pubShift').value='';$('pubOfficer').value='';$('pubIssue').value='';$('pubIssueCount').textContent='0';
+  $('pubShift').value='';$('pubOfficer').value='';$('pubEmail').value='';$('pubIssue').value='';$('pubIssueCount').textContent='0';
   $('pubWebPc').checked=false;$('pubWebMobile').checked=false;$('lblWebPc').classList.remove('on');$('lblWebMobile').classList.remove('on');
   $('pubWebPcRemark').value='';$('pubWebMobileRemark').value='';
   $('pubKioskBody').innerHTML=kioskRowsHtml();
   const t=new Date();$('pubDate').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   updatePubSummary();
   $('pubThanks').classList.add('hidden');$('pubForm').style.display='flex';window.scrollTo(0,0);
+}
+
+/* ---------- สร้าง PDF รายงาน 1 ฉบับ (A4) สำหรับส่งอีเมลให้เจ้าหน้าที่ ---------- */
+function ck(v){return v?'<span style="color:#15803d;font-weight:800">&#10003;</span>':'<span style="color:#dc2626;font-weight:800">&#10007;</span>';}
+function publicReportStyles(){return '<style>.pr{box-sizing:border-box;font-family:"Sarabun",Tahoma,sans-serif;color:#1f2937;font-size:13px;line-height:1.45;background:#fff;width:794px;padding:34px 40px}.pr *{box-sizing:border-box}.pr .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2f6b;padding-bottom:12px;margin-bottom:14px}.pr h1{color:#0b2f6b;font-size:21px;margin:0 0 4px}.pr .sub{color:#475569;font-size:12px}.pr .badge{background:#0b2f6b;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;font-weight:800;font-size:20px;white-space:nowrap}.pr .badge small{display:block;font-size:10px;font-weight:600;opacity:.85}.pr .meta{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:12.5px}.pr .meta td{border:1px solid #d0d7e5;padding:6px 10px}.pr .meta td.k{background:#f2f7ff;font-weight:700;color:#0b2f6b;width:130px;white-space:nowrap}.pr .chips{display:flex;gap:8px;margin:0 0 14px}.pr .chip{flex:1;border:1px solid #dce5f2;border-radius:8px;padding:8px;text-align:center;background:#f8fbff}.pr .chip b{display:block;font-size:18px;color:#0b2f6b}.pr .chip span{font-size:10.5px;color:#64748b}.pr h2{color:#0b2f6b;font-size:14px;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #e8f0fc}.pr table.k{width:100%;border-collapse:collapse;font-size:11.5px}.pr table.k th{background:#0b2f6b;color:#fff;padding:5px 6px;text-align:center;font-weight:700}.pr table.k th.l,.pr table.k td.l{text-align:left}.pr table.k td{border:1px solid #d7dee8;padding:4px 6px;text-align:center}.pr table.k tr.nr td{background:#fff5f5}.pr table.k tr:nth-child(even) td{background:#f8fafc}.pr table.k tr.nr:nth-child(even) td{background:#fff0f0}.pr .st-ok{color:#15803d;font-weight:700}.pr .st-no{color:#dc2626;font-weight:700}.pr .issue{border:1px solid #d0d7e5;border-radius:8px;background:#fafbfc;padding:10px 12px;white-space:pre-wrap;min-height:40px;font-size:12.5px}.pr .ft{margin-top:18px;border-top:1px solid #e2e8f0;padding-top:8px;color:#94a3b8;font-size:10.5px;text-align:center}</style>';}
+function buildPublicReportHtml(r){
+  const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
+    return '<tr class="'+(ok?'':'nr')+'"><td class="l"><b>'+esc(k.kiosk_id)+'</b></td><td>'+ck(k.system_ready)+'</td><td>'+ck(k.rustdesk_ready)+'</td><td>'+ck(k.network_ready)+'</td><td class="'+(ok?'st-ok':'st-no')+'">'+(ok?'Ready':'Not Ready')+'</td><td class="l">'+esc(k.remark||'')+'</td></tr>';}).join('');
+  return '<div class="pr">'+
+    '<div class="hd"><div><h1>รายงานการตรวจสอบระบบ TDAC</h1><div class="sub">Website (PC + Mobile) &amp; Kiosk · Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)</div></div><div class="badge">'+r.pct+'%<small>READINESS</small></div></div>'+
+    '<table class="meta"><tr><td class="k">วันที่ตรวจสอบ</td><td>'+esc(dispDate(r.date))+'</td><td class="k">รอบการตรวจสอบ</td><td>'+esc(r.shift)+'</td></tr>'+
+    '<tr><td class="k">ผู้ตรวจสอบ (OSO)</td><td>'+esc(r.officer)+'</td><td class="k">จัดทำเมื่อ</td><td>'+esc(new Date().toLocaleString('th-TH'))+'</td></tr></table>'+
+    '<div class="chips"><div class="chip"><b>'+r.total+'</b><span>Kiosks Total</span></div><div class="chip"><b style="color:#15803d">'+r.ready+'</b><span>All Ready</span></div><div class="chip"><b style="color:#dc2626">'+(r.total-r.ready)+'</b><span>Not Ready</span></div><div class="chip"><b>'+r.pct+'%</b><span>Readiness</span></div></div>'+
+    '<h2>Kiosk Checklist (IMM001–IMM020)</h2>'+
+    '<table class="k"><thead><tr><th class="l" style="width:70px">Kiosk</th><th style="width:64px">System</th><th style="width:70px">RustDesk</th><th style="width:64px">Network</th><th style="width:78px">สถานะ</th><th class="l">Remark</th></tr></thead><tbody>'+krows+'</tbody></table>'+
+    '<h2>Website / Mobile Checklist</h2>'+
+    '<table class="k"><thead><tr><th class="l" style="width:150px">Platform</th><th style="width:110px">System Ready</th><th class="l">Remark</th></tr></thead><tbody>'+
+      '<tr class="'+(r.webPc?'':'nr')+'"><td class="l"><b>Website (PC)</b></td><td>'+ck(r.webPc)+'</td><td class="l">'+esc(r.webPcRemark||'')+'</td></tr>'+
+      '<tr class="'+(r.webMobile?'':'nr')+'"><td class="l"><b>Website (Mobile)</b></td><td>'+ck(r.webMobile)+'</td><td class="l">'+esc(r.webMobileRemark||'')+'</td></tr>'+
+    '</tbody></table>'+
+    '<h2>รายละเอียดการรับแจ้งปัญหา / ข้อเสนอแนะ</h2><div class="issue">'+(r.issue?esc(r.issue):'<span style="color:#94a3b8">— ไม่มี —</span>')+'</div>'+
+    '<div class="ft">OSO-TDAC Operational Report · เอกสารนี้สร้างอัตโนมัติจากระบบเมื่อ '+esc(new Date().toLocaleString('th-TH'))+'</div>'+
+  '</div>';
+}
+async function generatePublicPdf(r){
+  if(typeof html2canvas==='undefined'||!window.jspdf){toast('โหลดไลบรารีสร้าง PDF ไม่สำเร็จ',true);return null;}
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-99999px;top:0;width:794px;background:#fff;z-index:-1';
+  host.innerHTML=publicReportStyles()+'<div id="__prRoot">'+buildPublicReportHtml(r)+'</div>';
+  document.body.appendChild(host);
+  try{
+    const el=host.querySelector('.pr');
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',windowWidth:794,scrollX:0,scrollY:0});
+    const {jsPDF}=window.jspdf;const pdf=new jsPDF('p','mm','a4');
+    const pw=210,ph=297,imgW=pw,imgH=canvas.height*pw/canvas.width;
+    const img=canvas.toDataURL('image/jpeg',0.92);
+    let heightLeft=imgH,position=0;
+    pdf.addImage(img,'JPEG',0,position,imgW,imgH);heightLeft-=ph;
+    while(heightLeft>0){position=heightLeft-imgH;pdf.addPage();pdf.addImage(img,'JPEG',0,position,imgW,imgH);heightLeft-=ph;}
+    const base64=pdf.output('datauristring').split(',')[1];
+    return {base64,filename:String(r.date).replace(/-/g,'')+'-OSO-TDAC-Report.pdf'};
+  }finally{document.body.removeChild(host);}
 }
 
 /* ============================================================
@@ -534,9 +599,16 @@ async function renderDirectory(){
   const {data:o,error}=await sb.from('officers').select('*').order('name');
   if(error){$('content').innerHTML='<div class="empty">โหลดรายชื่อไม่สำเร็จ</div>';return;}
   const items=o||[];
-  $('content').innerHTML='<div class="panel"><div class="panel-head"><div><div class="panel-title">เจ้าหน้าที่ Onsite Support (ผู้ตรวจสอบ)</div><div class="mini">'+items.length+' รายชื่อ · ปิดใช้งานจะไม่แสดงในฟอร์มสาธารณะ</div></div></div>'+
+  $('content').innerHTML='<div class="panel"><div class="panel-head"><div><div class="panel-title">เจ้าหน้าที่ Onsite Support (ผู้ตรวจสอบ)</div><div class="mini">'+items.length+' รายชื่อ · ปิดใช้งานจะไม่แสดงในฟอร์มสาธารณะ · <b>อีเมล</b> = ที่อยู่รับรายงาน PDF อัตโนมัติจากฟอร์ม</div></div></div>'+
     '<div class="dir-add"><input class="input" id="add_officer" placeholder="พิมพ์ชื่อแล้วกดเพิ่ม" onkeydown="if(event.key===\'Enter\')addOfficer()"><button class="btn primary" onclick="addOfficer()">เพิ่ม</button></div>'+
-    '<div class="dir-list">'+(items.map(it=>'<div class="dir-item"><span>'+esc(it.name)+(it.active?'':' <span class="tag neutral">ปิดใช้งาน</span>')+'</span><div style="display:flex;gap:6px"><button class="btn sm" onclick="toggleOfficer('+it.id+','+(it.active?'false':'true')+')">'+(it.active?'ปิดใช้งาน':'เปิดใช้งาน')+'</button><button class="btn icon danger" title="ลบ" onclick="delOfficer('+it.id+')">x</button></div></div>').join('')||'<div class="empty">ยังไม่มีรายชื่อ</div>')+'</div></div>';
+    '<div class="dir-list">'+(items.map(it=>'<div class="dir-item" style="align-items:center"><div style="flex:1;min-width:0"><div>'+esc(it.name)+(it.active?'':' <span class="tag neutral">ปิดใช้งาน</span>')+'</div><input class="input" type="email" style="min-height:34px;margin-top:6px;max-width:300px" value="'+esc(it.email||'')+'" placeholder="อีเมลรับรายงาน PDF (เช่น name@example.com)" onchange="setOfficerEmail('+it.id+',this.value)"></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn sm" onclick="toggleOfficer('+it.id+','+(it.active?'false':'true')+')">'+(it.active?'ปิดใช้งาน':'เปิดใช้งาน')+'</button><button class="btn icon danger" title="ลบ" onclick="delOfficer('+it.id+')">x</button></div></div>').join('')||'<div class="empty">ยังไม่มีรายชื่อ</div>')+'</div></div>';
+}
+async function setOfficerEmail(id,email){
+  email=(email||'').trim().toLowerCase();
+  if(email&&!/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(email))return toast('รูปแบบอีเมลไม่ถูกต้อง',true);
+  const {error}=await sb.from('officers').update({email:email||null}).eq('id',id);
+  if(error)return toast('บันทึกอีเมลไม่สำเร็จ: '+error.message,true);
+  logAction('update','officer','id='+id+' email='+(email||'(ลบ)'));toast('บันทึกอีเมลแล้ว');
 }
 function nkey(s){return String(s||'').trim().replace(/\s+/g,' ').toLowerCase();}
 async function addOfficer(){

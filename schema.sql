@@ -12,8 +12,11 @@ create table if not exists public.officers (
   id         bigint generated always as identity primary key,
   name       text not null unique,
   active     boolean not null default true,
+  email      text,                              -- อีเมลรับรายงาน PDF อัตโนมัติจากฟอร์มสาธารณะ
   created_at timestamptz not null default now()
 );
+-- เผื่อตารางถูกสร้างไว้ก่อนมีคอลัมน์ email (รันซ้ำได้)
+alter table public.officers add column if not exists email text;
 
 -- ============================================================
 --  2) รายงานการตรวจสอบ (1 แถว = 1 การตรวจสอบ 1 รอบ)

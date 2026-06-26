@@ -1,9 +1,10 @@
 # ============================================================
 #  deploy-functions.ps1  (ASCII-only for Windows PowerShell 5.1)
 #  Deploys all Supabase Edge Functions for the OSO system:
-#    - register     (public signup -> needs --no-verify-jwt)
-#    - admin-users  (manage users + approve + notify email)
-#    - send-report  (email reports)
+#    - register            (public signup -> needs --no-verify-jwt)
+#    - admin-users         (manage users + approve + notify email)
+#    - send-report         (email reports, login required)
+#    - send-public-report  (public form -> email PDF to OSO officer, --no-verify-jwt)
 #
 #  HOW TO RUN:
 #    cd "D:\Ai Tools\Claude\OSO TDAC Report\Github"
@@ -50,8 +51,12 @@ Write-Host "[2/3] deploy admin-users ..." -ForegroundColor Cyan
 npx --yes supabase functions deploy admin-users --project-ref $ProjectRef --use-api
 
 Write-Host ""
-Write-Host "[3/3] deploy send-report ..." -ForegroundColor Cyan
+Write-Host "[3/4] deploy send-report ..." -ForegroundColor Cyan
 npx --yes supabase functions deploy send-report --project-ref $ProjectRef --use-api
+
+Write-Host ""
+Write-Host "[4/4] deploy send-public-report (--no-verify-jwt) ..." -ForegroundColor Cyan
+npx --yes supabase functions deploy send-public-report --project-ref $ProjectRef --use-api --no-verify-jwt
 
 Write-Host ""
 Write-Host "==============================================" -ForegroundColor Green

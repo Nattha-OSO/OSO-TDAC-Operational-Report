@@ -213,8 +213,14 @@
                 </select>
               </div>
             </div>
-            <div class="field" style="margin-top:4px"><label class="label">ชื่อเจ้าหน้าที่ Onsite Support ผู้ทำการตรวจสอบ<span class="req">*</span></label>
-              <select class="input" id="pubOfficer" style="max-width:420px"><option value="">— เลือกชื่อเจ้าหน้าที่ —</option></select>
+            <div class="form-grid" style="margin-top:4px">
+              <div class="field"><label class="label">ชื่อเจ้าหน้าที่ Onsite Support ผู้ทำการตรวจสอบ<span class="req">*</span></label>
+                <select class="input" id="pubOfficer" onchange="fillOfficerEmail()"><option value="">— เลือกชื่อเจ้าหน้าที่ —</option></select>
+              </div>
+              <div class="field"><label class="label">อีเมลรับรายงาน PDF (ส่งให้เจ้าหน้าที่อัตโนมัติ)</label>
+                <input type="email" class="input" id="pubEmail" placeholder="เลือกชื่อแล้วอีเมลจะเติมให้อัตโนมัติ">
+                <div class="mini" style="margin-top:4px">เมื่อส่งรายงาน ระบบจะแนบไฟล์ PDF (A4) ส่งให้อีเมลนี้</div>
+              </div>
             </div>
           </div>
         </div>
@@ -432,9 +438,11 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=1"></script>
+<script src="config.js?v=2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=1"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
