@@ -139,6 +139,8 @@
   .pub-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
   .pub-badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.34);border-radius:20px;padding:4px 13px;font-size:12px;font-weight:600}
   .pub-badge.gold{background:var(--accent);border-color:var(--accent);color:#3a2e08}
+  .pub-guide-btn{margin-top:4px;background:#fff;color:var(--navy);border:0;border-radius:999px;padding:10px 22px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 8px 20px rgba(4,16,40,.28);transition:.15s}
+  .pub-guide-btn:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(4,16,40,.34)}
   .pub-login-top{position:absolute;top:16px;right:16px;z-index:2;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:13px}
   .pub-login-top:hover{background:rgba(255,255,255,.3)}
   .pub-wrap{flex:1;overflow:auto;display:flex;justify-content:center;padding:24px 16px}
@@ -166,6 +168,27 @@
   @media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.dash,.exec{grid-template-columns:1fr}}
   .side-backdrop{display:none;position:fixed;inset:0;background:rgba(8,20,44,.45);z-index:24}.side-backdrop.open{display:block}
   @media(min-width:761px){.side-backdrop{display:none!important}}
+  /* มือถือ: ตาราง Kiosk ไม่ต้องเลื่อนแนวนอน + ปุ่มติ๊กแตะง่าย */
+  @media(max-width:640px){
+    .ktable{min-width:0}
+    .ktable th,.ktable td{padding:8px 7px}
+    .ktable .kid{font-size:13px}
+    .checks{gap:6px}
+    .chk{padding:8px 10px;font-size:13px;flex:1 1 auto;justify-content:center;min-width:88px}
+    .chk input{width:18px;height:18px}
+    .btn-all{flex:1 1 100%;padding:9px;margin-top:2px}
+    .remark-input{font-size:13px;min-height:40px}
+    #guideModal .modal{width:100%!important;height:100%!important;max-height:100%!important;border-radius:0}
+    .pub-card{gap:14px}
+    .card-h{font-size:14px;padding:13px 15px}
+    .card-b{padding:14px}
+    .sumchip .n{font-size:22px}
+  }
+  @media(max-width:420px){
+    .chk span{font-size:12px}
+    .pub-top h1{font-size:19px}
+    .pub-guide-btn{width:100%}
+  }
 </style>
 </head>
 <body>
@@ -185,6 +208,7 @@
         <span class="pub-badge">ตรวจสอบกะละ 1 ครั้ง</span>
         <span class="pub-badge gold">IMM001–IMM020</span>
       </div>
+      <button class="pub-guide-btn" onclick="openGuide()">📖 คู่มือการใช้งาน</button>
     </div>
   </header>
   <main class="pub-wrap">
@@ -204,7 +228,7 @@
           <div class="card-h">📋 ข้อมูลการตรวจสอบ</div>
           <div class="card-b">
             <div class="form-grid">
-              <div class="field"><label class="label">วันที่ตรวจสอบ<span class="req">*</span></label><input type="date" class="input" id="pubDate"></div>
+              <div class="field"><label class="label">วันที่ตรวจสอบ<span class="req">*</span></label><input type="date" class="input" id="pubDate" onchange="updatePubDateLabel()"><div class="mini" id="pubDateFmt" style="margin-top:5px;font-weight:600;color:var(--primary-d)"></div></div>
               <div class="field"><label class="label">รอบการตรวจสอบ<span class="req">*</span></label>
                 <select class="input" id="pubShift">
                   <option value="">— เลือกรอบ —</option>
@@ -436,11 +460,18 @@
     </div>
   </div>
 </div>
+<!-- ===== Modal คู่มือการใช้งาน (สาธารณะ) ===== -->
+<div class="overlay" id="guideModal" onclick="if(event.target===this)closeGuide()">
+  <div class="modal" style="width:980px;height:92vh;max-height:92vh">
+    <div class="modal-head"><div class="modal-title">📖 คู่มือการใช้งาน OSO-TDAC Operational Report</div><button class="btn icon" onclick="closeGuide()">x</button></div>
+    <div style="flex:1;overflow:hidden;background:#f4f7fb"><iframe id="guideFrame" title="คู่มือการใช้งาน" style="width:100%;height:100%;border:0;display:block"></iframe></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=4"></script>
+<script src="config.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

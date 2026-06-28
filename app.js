@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='4';
+const APP_VERSION='5';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -165,8 +165,16 @@ function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px
 function initPublicForm(){
   const body=$('pubKioskBody');if(body&&!body.children.length)body.innerHTML=kioskRowsHtml();
   const d=$('pubDate');if(d&&!d.value){const t=new Date();d.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');}
-  updatePubSummary();
+  updatePubDateLabel();updatePubSummary();
 }
+// แสดงวันที่ที่เลือกเป็นรูปแบบ DD/MM/YYYY (เช่น 28/06/2026)
+function updatePubDateLabel(){
+  const el=$('pubDateFmt');if(!el)return;const v=($('pubDate').value||'');
+  if(!v){el.textContent='';return;}const a=v.split('-');el.textContent='📅 '+a[2]+'/'+a[1]+'/'+a[0];
+}
+// คู่มือการใช้งาน (โหลด guide.html ใน iframe เมื่อเปิดครั้งแรก)
+function openGuide(){const f=$('guideFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src','guide.html?v='+APP_VERSION);$('guideModal').classList.add('open');}
+function closeGuide(){$('guideModal').classList.remove('open');}
 function togglePubWeb(cb,lblId){const l=$(lblId);if(l)l.classList.toggle('on',cb.checked);}
 // อัปเดตคลาส/ปุ่ม Check All ของแถวเมื่อ checkbox เปลี่ยน
 function kioskChanged(el){
