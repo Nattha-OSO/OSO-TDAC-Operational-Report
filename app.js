@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='3';
+const APP_VERSION='4';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -242,20 +242,23 @@ async function submitPublic(){
   if(error){btn.disabled=false;return toast('ส่งไม่สำเร็จ: '+error.message,true);}
   // สร้าง PDF (A4) แล้วส่งอีเมลให้เจ้าหน้าที่ OSO อัตโนมัติ — ถ้าล้มเหลวรายงานก็ถูกบันทึกแล้ว
   if(email){
-    const disp={date,shift,officer,email,kiosks,webPc:report.web_pc_ready,webPcRemark:report.web_pc_remark,
+    const disp={date,shift,officer,kiosks,webPc:report.web_pc_ready,webPcRemark:report.web_pc_remark,
       webMobile:report.web_mobile_ready,webMobileRemark:report.web_mobile_remark,issue:report.issue_log,ready,total:KIOSK_COUNT,pct};
-    btn.innerHTML='<span class="btn-spin"></span>กำลังสร้าง PDF และส่งอีเมล...';
+    btn.innerHTML='<span class="btn-spin"></span>กำลังสร้างไฟล์และส่งอีเมล...';
     try{
-      const pdf=await generatePublicPdf(disp);
-      if(pdf){
+      const blob=await buildSingleReportDocxBlob(disp);
+      const b64=blob?await blobToB64(blob):null;
+      if(b64){
         const msg='เรียน '+officer+'\n\nแนบไฟล์รายงานการตรวจสอบระบบ TDAC ประจำ '+dispDate(date)+' รอบ '+shift+
           '\nความพร้อม (Readiness): '+pct+'%  ('+ready+'/'+KIOSK_COUNT+' เครื่องพร้อมใช้งาน)'+
           '\n\nระบบ OSO-TDAC Operational Report';
-        const r=await callFn('send-public-report',{to:email,subject:'รายงานการตรวจสอบระบบ TDAC '+dispDate(date)+' ('+shift+')',filename:pdf.filename,pdfBase64:pdf.base64,message:msg});
+        const fn=String(date).replace(/-/g,'')+'-OSO-TDAC-Report.docx';
+        // ส่งไบต์ DOCX ผ่านพารามิเตอร์ pdfBase64 เดิม — edge function แนบไฟล์ตามชื่อ .docx ให้เอง (ไม่ต้อง redeploy)
+        const r=await callFn('send-public-report',{to:email,subject:'รายงานการตรวจสอบระบบ TDAC '+dispDate(date)+' ('+shift+')',filename:fn,pdfBase64:b64,message:msg});
         if(r.error)toast('บันทึกรายงานแล้ว แต่ส่งอีเมลไม่สำเร็จ: '+r.error,true);
-        else toast('ส่งรายงาน PDF ไปที่ '+email+' แล้ว ✓');
+        else toast('ส่งรายงาน (DOCX) ไปที่ '+email+' แล้ว ✓');
       }
-    }catch(e){toast('บันทึกรายงานแล้ว แต่สร้าง/ส่ง PDF ไม่สำเร็จ: '+((e&&e.message)||e),true);}
+    }catch(e){toast('บันทึกรายงานแล้ว แต่สร้าง/ส่งไฟล์ไม่สำเร็จ: '+((e&&e.message)||e),true);}
   }
   btn.disabled=false;btn.innerHTML='✓ ส่งรายงานการตรวจสอบ';
   $('pubForm').style.display='none';$('pubThanks').classList.remove('hidden');window.scrollTo(0,0);
@@ -268,60 +271,6 @@ function resetPublic(){
   const t=new Date();$('pubDate').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   updatePubSummary();
   $('pubThanks').classList.add('hidden');$('pubForm').style.display='flex';window.scrollTo(0,0);
-}
-
-/* ---------- สร้าง PDF รายงาน 1 ฉบับ (A4) สำหรับส่งอีเมลให้เจ้าหน้าที่ ---------- */
-function ck(v){return v?'<span style="color:#15803d;font-weight:800">&#10003;</span>':'<span style="color:#dc2626;font-weight:800">&#10007;</span>';}
-function publicReportStyles(){return '<style>.pr{box-sizing:border-box;font-family:"Sarabun",Tahoma,sans-serif;color:#1f2937;font-size:13px;line-height:1.45;background:#fff;width:720px;padding:4px}.pr *{box-sizing:border-box}.pr .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2f6b;padding-bottom:12px;margin-bottom:14px}.pr h1{color:#0b2f6b;font-size:21px;margin:0 0 4px}.pr .sub{color:#475569;font-size:12px}.pr .badge{background:#0b2f6b;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;font-weight:800;font-size:20px;white-space:nowrap}.pr .badge small{display:block;font-size:10px;font-weight:600;opacity:.85}.pr .meta{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:12.5px}.pr .meta td{border:1px solid #d0d7e5;padding:6px 10px}.pr .meta td.k{background:#f2f7ff;font-weight:700;color:#0b2f6b;width:130px;white-space:nowrap}.pr .chips{display:flex;gap:8px;margin:0 0 14px}.pr .chip{flex:1;border:1px solid #dce5f2;border-radius:8px;padding:8px;text-align:center;background:#f8fbff}.pr .chip b{display:block;font-size:18px;color:#0b2f6b}.pr .chip span{font-size:10.5px;color:#64748b}.pr h2{color:#0b2f6b;font-size:14px;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #e8f0fc}.pr table.k{width:100%;border-collapse:collapse;font-size:11.5px}.pr table.k th{background:#0b2f6b;color:#fff;padding:5px 6px;text-align:center;font-weight:700}.pr table.k th.l,.pr table.k td.l{text-align:left}.pr table.k td{border:1px solid #d7dee8;padding:4px 6px;text-align:center}.pr table.k tr.nr td{background:#fff5f5}.pr table.k tr:nth-child(even) td{background:#f8fafc}.pr table.k tr.nr:nth-child(even) td{background:#fff0f0}.pr .st-ok{color:#15803d;font-weight:700}.pr .st-no{color:#dc2626;font-weight:700}.pr .issue{border:1px solid #d0d7e5;border-radius:8px;background:#fafbfc;padding:10px 12px;white-space:pre-wrap;min-height:40px;font-size:12.5px}.pr .ft{margin-top:18px;border-top:1px solid #e2e8f0;padding-top:8px;color:#94a3b8;font-size:10.5px;text-align:center}</style>';}
-function buildPublicReportHtml(r){
-  const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
-    return '<tr class="'+(ok?'':'nr')+'"><td class="l"><b>'+esc(k.kiosk_id)+'</b></td><td>'+ck(k.system_ready)+'</td><td>'+ck(k.rustdesk_ready)+'</td><td>'+ck(k.network_ready)+'</td><td class="'+(ok?'st-ok':'st-no')+'">'+(ok?'Ready':'Not Ready')+'</td><td class="l">'+esc(k.remark||'')+'</td></tr>';}).join('');
-  return '<div class="pr">'+
-    '<div class="hd"><div><h1>รายงานการตรวจสอบระบบ TDAC</h1><div class="sub">Website (PC + Mobile) &amp; Kiosk · Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)</div></div><div class="badge">'+r.pct+'%<small>READINESS</small></div></div>'+
-    '<table class="meta"><tr><td class="k">วันที่ตรวจสอบ</td><td>'+esc(dispDate(r.date))+'</td><td class="k">รอบการตรวจสอบ</td><td>'+esc(r.shift)+'</td></tr>'+
-    '<tr><td class="k">ผู้ตรวจสอบ (OSO)</td><td>'+esc(r.officer)+'</td><td class="k">จัดทำเมื่อ</td><td>'+esc(new Date().toLocaleString('th-TH'))+'</td></tr></table>'+
-    '<div class="chips"><div class="chip"><b>'+r.total+'</b><span>Kiosks Total</span></div><div class="chip"><b style="color:#15803d">'+r.ready+'</b><span>All Ready</span></div><div class="chip"><b style="color:#dc2626">'+(r.total-r.ready)+'</b><span>Not Ready</span></div><div class="chip"><b>'+r.pct+'%</b><span>Readiness</span></div></div>'+
-    '<h2>Kiosk Checklist (IMM001–IMM020)</h2>'+
-    '<table class="k"><thead><tr><th class="l" style="width:70px">Kiosk</th><th style="width:64px">System</th><th style="width:70px">RustDesk</th><th style="width:64px">Network</th><th style="width:78px">สถานะ</th><th class="l">Remark</th></tr></thead><tbody>'+krows+'</tbody></table>'+
-    '<h2>Website / Mobile Checklist</h2>'+
-    '<table class="k"><thead><tr><th class="l" style="width:150px">Platform</th><th style="width:110px">System Ready</th><th class="l">Remark</th></tr></thead><tbody>'+
-      '<tr class="'+(r.webPc?'':'nr')+'"><td class="l"><b>Website (PC)</b></td><td>'+ck(r.webPc)+'</td><td class="l">'+esc(r.webPcRemark||'')+'</td></tr>'+
-      '<tr class="'+(r.webMobile?'':'nr')+'"><td class="l"><b>Website (Mobile)</b></td><td>'+ck(r.webMobile)+'</td><td class="l">'+esc(r.webMobileRemark||'')+'</td></tr>'+
-    '</tbody></table>'+
-    '<h2>รายละเอียดการรับแจ้งปัญหา / ข้อเสนอแนะ</h2><div class="issue">'+(r.issue?esc(r.issue):'<span style="color:#94a3b8">— ไม่มี —</span>')+'</div>'+
-    '<div class="ft">OSO-TDAC Operational Report · เอกสารนี้สร้างอัตโนมัติจากระบบเมื่อ '+esc(new Date().toLocaleString('th-TH'))+'</div>'+
-  '</div>';
-}
-async function generatePublicPdf(r){
-  if(typeof html2canvas==='undefined'||!window.jspdf){toast('โหลดไลบรารีสร้าง PDF ไม่สำเร็จ',true);return null;}
-  const host=document.createElement('div');
-  host.style.cssText='position:fixed;left:-99999px;top:0;width:720px;background:#fff;z-index:-1';
-  host.innerHTML=publicReportStyles()+'<div id="__prRoot">'+buildPublicReportHtml(r)+'</div>';
-  document.body.appendChild(host);
-  try{
-    const el=host.querySelector('.pr');
-    const canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',windowWidth:720,scrollX:0,scrollY:0});
-    const {jsPDF}=window.jspdf;const pdf=new jsPDF('p','mm','a4');
-    // A4 พร้อมขอบขาว แล้วแบ่งหน้าโดยตัดภาพเป็นช่วง ๆ (ไม่ยืดเต็มหน้า/ไม่ตกขอบ)
-    const pw=210,ph=297,mx=12,my=14;          // margin ซ้าย-ขวา / บน-ล่าง (มม.)
-    const cw=pw-mx*2;                          // ความกว้างเนื้อหา (มม.)
-    const chMax=ph-my*2;                       // ความสูงเนื้อหาต่อหน้า (มม.)
-    const pxPerMm=canvas.width/cw;             // สเกล px->mm (กว้างเต็ม cw)
-    const pageHpx=Math.floor(chMax*pxPerMm);   // จำนวน px ต่อ 1 หน้า
-    let y=0,first=true;
-    while(y<canvas.height){
-      const sh=Math.min(pageHpx,canvas.height-y);
-      const slice=document.createElement('canvas');slice.width=canvas.width;slice.height=sh;
-      const ctx=slice.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,slice.width,sh);
-      ctx.drawImage(canvas,0,y,canvas.width,sh,0,0,canvas.width,sh);
-      const img=slice.toDataURL('image/jpeg',0.94);
-      if(!first)pdf.addPage();
-      pdf.addImage(img,'JPEG',mx,my,cw,sh/pxPerMm);
-      first=false;y+=sh;
-    }
-    const base64=pdf.output('datauristring').split(',')[1];
-    return {base64,filename:String(r.date).replace(/-/g,'')+'-OSO-TDAC-Report.pdf'};
-  }finally{document.body.removeChild(host);}
 }
 
 /* ============================================================
@@ -816,6 +765,48 @@ function dKpiCards(cards){
   const grid='<w:tblGrid>'+cards.map(()=>'<w:gridCol w:w="'+w+'"/>').join('')+'</w:tblGrid>';
   const mk=(arr,o)=>'<w:tr>'+arr.map(t=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F7FF"/></w:tcPr>'+dCellPar(t,o)+'</w:tc>').join('')+'</w:tr>';
   return '<w:tbl><w:tblPr><w:tblW w:w="'+(w*cards.length)+'" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="DCE5F2"/><w:left w:val="single" w:sz="4" w:color="DCE5F2"/><w:bottom w:val="single" w:sz="4" w:color="DCE5F2"/><w:right w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideH w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideV w:val="single" w:sz="4" w:color="DCE5F2"/></w:tblBorders></w:tblPr>'+grid+mk(cards.map(c=>c[0]),{sz:18,color:'6a7d9b',align:'center'})+mk(cards.map(c=>c[1]),{sz:34,bold:true,color:'0b2f6b',align:'center'})+mk(cards.map(c=>c[2]),{sz:18,color:'6a7d9b',align:'center'})+'</w:tbl>'+dPar('',{after:80});
+}
+// ตารางคีย์-ค่า (ไม่มีแถวหัว) — คอลัมน์ซ้ายเป็นป้ายชื่อ
+function dKvTable(pairs,w1,w2){
+  const borders='<w:tblBorders><w:top w:val="single" w:sz="4" w:color="D0D7E5"/><w:left w:val="single" w:sz="4" w:color="D0D7E5"/><w:bottom w:val="single" w:sz="4" w:color="D0D7E5"/><w:right w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideH w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideV w:val="single" w:sz="4" w:color="D0D7E5"/></w:tblBorders>';
+  const trs=pairs.map(p=>'<w:tr>'+
+    '<w:tc><w:tcPr><w:tcW w:w="'+w1+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F7FF"/><w:vAlign w:val="center"/></w:tcPr>'+dCellPar(p[0],{sz:20,bold:true,color:'0b2f6b'})+'</w:tc>'+
+    '<w:tc><w:tcPr><w:tcW w:w="'+w2+'" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+dCellPar(p[1],{sz:20,color:'1f2937'})+'</w:tc></w:tr>').join('');
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+(w1+w2)+'" w:type="dxa"/><w:tblLayout w:type="fixed"/>'+borders+'</w:tblPr><w:tblGrid><w:gridCol w:w="'+w1+'"/><w:gridCol w:w="'+w2+'"/></w:tblGrid>'+trs+'</w:tbl>'+dPar('',{after:80});
+}
+// DOCX รายงานการตรวจสอบ 1 ฉบับ (สำหรับส่งอีเมลให้เจ้าหน้าที่ OSO จากฟอร์มสาธารณะ) — รูปแบบทางการ พอดี A4
+async function buildSingleReportDocxBlob(r){
+  if(typeof JSZip==='undefined'){toast('โหลด JSZip ไม่สำเร็จ',true);return null;}
+  const yes='✔',no='✘';   // ✔ / ✘
+  let body='';
+  body+=dPar('รายงานการตรวจสอบระบบ TDAC',{sz:38,bold:true,color:'0b2f6b',align:'center',after:40});
+  body+=dPar('Website (PC + Mobile) และ Kiosk · Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)',{sz:18,color:'374151',align:'center',after:180});
+  body+=dKvTable([
+    ['วันที่ตรวจสอบ',dispDate(r.date)],
+    ['รอบการตรวจสอบ',r.shift],
+    ['ผู้ตรวจสอบ (OSO)',r.officer],
+    ['ความพร้อม (Readiness)',r.pct+'%   ('+r.ready+' / '+r.total+' เครื่องพร้อมใช้งาน)'],
+    ['จัดทำเมื่อ',new Date().toLocaleString('th-TH')]
+  ],3200,6800);
+  body+=dKpiCards([['Kiosks Total',String(r.total),'เครื่อง'],['All Ready',String(r.ready),'เครื่อง'],['Not Ready',String(r.total-r.ready),'เครื่อง'],['Readiness',r.pct+'%','ความพร้อม']]);
+  body+=dHeading('Kiosk Checklist (IMM001–IMM020)');
+  const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
+    return [k.kiosk_id,k.system_ready?yes:no,k.rustdesk_ready?yes:no,k.network_ready?yes:no,ok?'Ready':'Not Ready',k.remark||''];});
+  body+=dTable([['Kiosk','System','RustDesk','Network','สถานะ','Remark']].concat(krows),[1300,1300,1500,1300,1500,3100]);
+  body+=dHeading('Website / Mobile Checklist');
+  body+=dTable([['Platform','System Ready','Remark'],
+    ['Website (PC)',r.webPc?yes:no,r.webPcRemark||''],
+    ['Website (Mobile)',r.webMobile?yes:no,r.webMobileRemark||'']],[2700,2200,5100]);
+  body+=dHeading('รายละเอียดการรับแจ้งปัญหา / ข้อเสนอแนะ');
+  body+=dPar(r.issue||'— ไม่มี —',{fill:'F4F6F9'});
+  const docXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="850" w:bottom="900" w:left="850"/></w:sectPr></w:body></w:document>';
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml',ct);
+  zip.folder('_rels').file('.rels',rels);
+  zip.folder('word').file('document.xml',docXml);
+  return await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
 // กราฟแท่ง: bars=[{label,value,color}]
 function chartCanvas(bars,unit){
