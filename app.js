@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='2';
+const APP_VERSION='3';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -272,7 +272,7 @@ function resetPublic(){
 
 /* ---------- สร้าง PDF รายงาน 1 ฉบับ (A4) สำหรับส่งอีเมลให้เจ้าหน้าที่ ---------- */
 function ck(v){return v?'<span style="color:#15803d;font-weight:800">&#10003;</span>':'<span style="color:#dc2626;font-weight:800">&#10007;</span>';}
-function publicReportStyles(){return '<style>.pr{box-sizing:border-box;font-family:"Sarabun",Tahoma,sans-serif;color:#1f2937;font-size:13px;line-height:1.45;background:#fff;width:794px;padding:34px 40px}.pr *{box-sizing:border-box}.pr .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2f6b;padding-bottom:12px;margin-bottom:14px}.pr h1{color:#0b2f6b;font-size:21px;margin:0 0 4px}.pr .sub{color:#475569;font-size:12px}.pr .badge{background:#0b2f6b;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;font-weight:800;font-size:20px;white-space:nowrap}.pr .badge small{display:block;font-size:10px;font-weight:600;opacity:.85}.pr .meta{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:12.5px}.pr .meta td{border:1px solid #d0d7e5;padding:6px 10px}.pr .meta td.k{background:#f2f7ff;font-weight:700;color:#0b2f6b;width:130px;white-space:nowrap}.pr .chips{display:flex;gap:8px;margin:0 0 14px}.pr .chip{flex:1;border:1px solid #dce5f2;border-radius:8px;padding:8px;text-align:center;background:#f8fbff}.pr .chip b{display:block;font-size:18px;color:#0b2f6b}.pr .chip span{font-size:10.5px;color:#64748b}.pr h2{color:#0b2f6b;font-size:14px;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #e8f0fc}.pr table.k{width:100%;border-collapse:collapse;font-size:11.5px}.pr table.k th{background:#0b2f6b;color:#fff;padding:5px 6px;text-align:center;font-weight:700}.pr table.k th.l,.pr table.k td.l{text-align:left}.pr table.k td{border:1px solid #d7dee8;padding:4px 6px;text-align:center}.pr table.k tr.nr td{background:#fff5f5}.pr table.k tr:nth-child(even) td{background:#f8fafc}.pr table.k tr.nr:nth-child(even) td{background:#fff0f0}.pr .st-ok{color:#15803d;font-weight:700}.pr .st-no{color:#dc2626;font-weight:700}.pr .issue{border:1px solid #d0d7e5;border-radius:8px;background:#fafbfc;padding:10px 12px;white-space:pre-wrap;min-height:40px;font-size:12.5px}.pr .ft{margin-top:18px;border-top:1px solid #e2e8f0;padding-top:8px;color:#94a3b8;font-size:10.5px;text-align:center}</style>';}
+function publicReportStyles(){return '<style>.pr{box-sizing:border-box;font-family:"Sarabun",Tahoma,sans-serif;color:#1f2937;font-size:13px;line-height:1.45;background:#fff;width:720px;padding:4px}.pr *{box-sizing:border-box}.pr .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0b2f6b;padding-bottom:12px;margin-bottom:14px}.pr h1{color:#0b2f6b;font-size:21px;margin:0 0 4px}.pr .sub{color:#475569;font-size:12px}.pr .badge{background:#0b2f6b;color:#fff;border-radius:8px;padding:8px 14px;text-align:center;font-weight:800;font-size:20px;white-space:nowrap}.pr .badge small{display:block;font-size:10px;font-weight:600;opacity:.85}.pr .meta{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:12.5px}.pr .meta td{border:1px solid #d0d7e5;padding:6px 10px}.pr .meta td.k{background:#f2f7ff;font-weight:700;color:#0b2f6b;width:130px;white-space:nowrap}.pr .chips{display:flex;gap:8px;margin:0 0 14px}.pr .chip{flex:1;border:1px solid #dce5f2;border-radius:8px;padding:8px;text-align:center;background:#f8fbff}.pr .chip b{display:block;font-size:18px;color:#0b2f6b}.pr .chip span{font-size:10.5px;color:#64748b}.pr h2{color:#0b2f6b;font-size:14px;margin:16px 0 6px;padding-bottom:3px;border-bottom:2px solid #e8f0fc}.pr table.k{width:100%;border-collapse:collapse;font-size:11.5px}.pr table.k th{background:#0b2f6b;color:#fff;padding:5px 6px;text-align:center;font-weight:700}.pr table.k th.l,.pr table.k td.l{text-align:left}.pr table.k td{border:1px solid #d7dee8;padding:4px 6px;text-align:center}.pr table.k tr.nr td{background:#fff5f5}.pr table.k tr:nth-child(even) td{background:#f8fafc}.pr table.k tr.nr:nth-child(even) td{background:#fff0f0}.pr .st-ok{color:#15803d;font-weight:700}.pr .st-no{color:#dc2626;font-weight:700}.pr .issue{border:1px solid #d0d7e5;border-radius:8px;background:#fafbfc;padding:10px 12px;white-space:pre-wrap;min-height:40px;font-size:12.5px}.pr .ft{margin-top:18px;border-top:1px solid #e2e8f0;padding-top:8px;color:#94a3b8;font-size:10.5px;text-align:center}</style>';}
 function buildPublicReportHtml(r){
   const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
     return '<tr class="'+(ok?'':'nr')+'"><td class="l"><b>'+esc(k.kiosk_id)+'</b></td><td>'+ck(k.system_ready)+'</td><td>'+ck(k.rustdesk_ready)+'</td><td>'+ck(k.network_ready)+'</td><td class="'+(ok?'st-ok':'st-no')+'">'+(ok?'Ready':'Not Ready')+'</td><td class="l">'+esc(k.remark||'')+'</td></tr>';}).join('');
@@ -295,18 +295,30 @@ function buildPublicReportHtml(r){
 async function generatePublicPdf(r){
   if(typeof html2canvas==='undefined'||!window.jspdf){toast('โหลดไลบรารีสร้าง PDF ไม่สำเร็จ',true);return null;}
   const host=document.createElement('div');
-  host.style.cssText='position:fixed;left:-99999px;top:0;width:794px;background:#fff;z-index:-1';
+  host.style.cssText='position:fixed;left:-99999px;top:0;width:720px;background:#fff;z-index:-1';
   host.innerHTML=publicReportStyles()+'<div id="__prRoot">'+buildPublicReportHtml(r)+'</div>';
   document.body.appendChild(host);
   try{
     const el=host.querySelector('.pr');
-    const canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',windowWidth:794,scrollX:0,scrollY:0});
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:'#ffffff',windowWidth:720,scrollX:0,scrollY:0});
     const {jsPDF}=window.jspdf;const pdf=new jsPDF('p','mm','a4');
-    const pw=210,ph=297,imgW=pw,imgH=canvas.height*pw/canvas.width;
-    const img=canvas.toDataURL('image/jpeg',0.92);
-    let heightLeft=imgH,position=0;
-    pdf.addImage(img,'JPEG',0,position,imgW,imgH);heightLeft-=ph;
-    while(heightLeft>0){position=heightLeft-imgH;pdf.addPage();pdf.addImage(img,'JPEG',0,position,imgW,imgH);heightLeft-=ph;}
+    // A4 พร้อมขอบขาว แล้วแบ่งหน้าโดยตัดภาพเป็นช่วง ๆ (ไม่ยืดเต็มหน้า/ไม่ตกขอบ)
+    const pw=210,ph=297,mx=12,my=14;          // margin ซ้าย-ขวา / บน-ล่าง (มม.)
+    const cw=pw-mx*2;                          // ความกว้างเนื้อหา (มม.)
+    const chMax=ph-my*2;                       // ความสูงเนื้อหาต่อหน้า (มม.)
+    const pxPerMm=canvas.width/cw;             // สเกล px->mm (กว้างเต็ม cw)
+    const pageHpx=Math.floor(chMax*pxPerMm);   // จำนวน px ต่อ 1 หน้า
+    let y=0,first=true;
+    while(y<canvas.height){
+      const sh=Math.min(pageHpx,canvas.height-y);
+      const slice=document.createElement('canvas');slice.width=canvas.width;slice.height=sh;
+      const ctx=slice.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,slice.width,sh);
+      ctx.drawImage(canvas,0,y,canvas.width,sh,0,0,canvas.width,sh);
+      const img=slice.toDataURL('image/jpeg',0.94);
+      if(!first)pdf.addPage();
+      pdf.addImage(img,'JPEG',mx,my,cw,sh/pxPerMm);
+      first=false;y+=sh;
+    }
     const base64=pdf.output('datauristring').split(',')[1];
     return {base64,filename:String(r.date).replace(/-/g,'')+'-OSO-TDAC-Report.pdf'};
   }finally{document.body.removeChild(host);}
