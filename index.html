@@ -168,16 +168,22 @@
   @media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.dash,.exec{grid-template-columns:1fr}}
   .side-backdrop{display:none;position:fixed;inset:0;background:rgba(8,20,44,.45);z-index:24}.side-backdrop.open{display:block}
   @media(min-width:761px){.side-backdrop{display:none!important}}
-  /* มือถือ: ตาราง Kiosk ไม่ต้องเลื่อนแนวนอน + ปุ่มติ๊กแตะง่าย */
+  /* มือถือ: แปลงตาราง Kiosk/Website เป็นการ์ดแนวตั้ง — ID + ติ๊ก + ช่องหมายเหตุเต็มความกว้างด้านล่าง (ไม่เลื่อนซ้าย-ขวา) */
   @media(max-width:640px){
-    .ktable{min-width:0}
-    .ktable th,.ktable td{padding:8px 7px}
-    .ktable .kid{font-size:13px}
-    .checks{gap:6px}
-    .chk{padding:8px 10px;font-size:13px;flex:1 1 auto;justify-content:center;min-width:88px}
+    .ktable{min-width:0;display:block}
+    .ktable thead{display:none}
+    .ktable tbody{display:block}
+    .ktable tr{display:block;border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px 13px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+    .ktable tr.ready{background:#f6fef9;border-color:#bbf0cf}
+    .ktable td{display:block;border:0;padding:0}
+    .ktable .kid{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:8px}
+    .checks{gap:7px;margin-bottom:9px}
+    .chk{flex:1 1 28%;justify-content:center;padding:10px 8px;font-size:13px;min-width:0}
     .chk input{width:18px;height:18px}
-    .btn-all{flex:1 1 100%;padding:9px;margin-top:2px}
-    .remark-input{font-size:13px;min-height:40px}
+    .btn-all{flex:1 1 100%;padding:10px;margin-top:2px;font-size:13px}
+    .remark-input{width:100%;font-size:14px;min-height:50px;background:#fafbfd;padding:9px 11px}
+    .remark-cell::before,.ktable td:last-child::before{content:"📝 หมายเหตุ";display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
+    #guideModal{padding:0}
     #guideModal .modal{width:100%!important;height:100%!important;max-height:100%!important;border-radius:0}
     .pub-card{gap:14px}
     .card-h{font-size:14px;padding:13px 15px}
@@ -469,9 +475,9 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=5"></script>
+<script src="config.js?v=6"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

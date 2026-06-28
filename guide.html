@@ -34,9 +34,11 @@
       color: var(--text);
       font-size: 14px;
       line-height: 1.5;
+      overflow-x: hidden;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    img { max-width: 100%; height: auto; }
 
     .page {
       max-width: 900px;
@@ -327,6 +329,23 @@
       color: var(--muted);
       padding-top: 8px;
       border-top: 1px solid var(--border);
+    }
+
+    /* ── MOBILE ── */
+    @media (max-width: 480px) {
+      .page { padding: 16px 12px 24px; }
+      .header { padding: 18px 16px; flex-direction: column; text-align: center; gap: 12px; }
+      .header::after { display: none; }
+      .header-icon { font-size: 40px; }
+      .header-text h1 { font-size: 18px; }
+      .header-badges { justify-content: center; }
+      .badge { white-space: normal; }
+      .export-card { flex-direction: column; gap: 12px; padding: 16px; }
+      .export-icon { font-size: 30px; }
+      .export-steps { flex-direction: column; }
+      .export-step { width: 100%; }
+      .platform-note { font-size: 11px; }
+      .tip { padding: 12px 13px; }
     }
 
     /* ── PRINT ── */
