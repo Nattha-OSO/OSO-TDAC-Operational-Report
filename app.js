@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='10';
+const APP_VERSION='11';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -832,8 +832,12 @@ function dTable(rows,widths,headerFill){
 function dKpiCards(cards){
   const w=Math.floor(9000/cards.length);
   const grid='<w:tblGrid>'+cards.map(()=>'<w:gridCol w:w="'+w+'"/>').join('')+'</w:tblGrid>';
-  const mk=(arr,o)=>'<w:tr>'+arr.map(t=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F7FF"/></w:tcPr>'+dCellPar(t,o)+'</w:tc>').join('')+'</w:tr>';
-  return '<w:tbl><w:tblPr><w:tblW w:w="'+(w*cards.length)+'" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="DCE5F2"/><w:left w:val="single" w:sz="4" w:color="DCE5F2"/><w:bottom w:val="single" w:sz="4" w:color="DCE5F2"/><w:right w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideH w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideV w:val="single" w:sz="4" w:color="DCE5F2"/></w:tblBorders></w:tblPr>'+grid+mk(cards.map(c=>c[0]),{sz:18,color:'6a7d9b',align:'center'})+mk(cards.map(c=>c[1]),{sz:34,bold:true,color:'0b2f6b',align:'center'})+mk(cards.map(c=>c[2]),{sz:18,color:'6a7d9b',align:'center'})+'</w:tbl>'+dPar('',{after:80});
+  // card[3] = สีค่าตัวเลข (ถ้ามี) ใช้สีเฉพาะการ์ดได้
+  const cell=(t,o)=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F7FF"/><w:vAlign w:val="center"/></w:tcPr>'+dCellPar(t,o)+'</w:tc>';
+  const r1='<w:tr>'+cards.map(c=>cell(c[0],{sz:18,color:'6a7d9b',align:'center'})).join('')+'</w:tr>';
+  const r2='<w:tr>'+cards.map(c=>cell(c[1],{sz:34,bold:true,color:c[3]||'0b2f6b',align:'center'})).join('')+'</w:tr>';
+  const r3='<w:tr>'+cards.map(c=>cell(c[2],{sz:18,color:'6a7d9b',align:'center'})).join('')+'</w:tr>';
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+(w*cards.length)+'" w:type="dxa"/><w:jc w:val="center"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="DCE5F2"/><w:left w:val="single" w:sz="4" w:color="DCE5F2"/><w:bottom w:val="single" w:sz="4" w:color="DCE5F2"/><w:right w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideH w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideV w:val="single" w:sz="4" w:color="DCE5F2"/></w:tblBorders></w:tblPr>'+grid+r1+r2+r3+'</w:tbl>'+dPar('',{after:80});
 }
 // โหลดไบต์โลโก้ (cache) สำหรับฝังใน DOCX
 let LOGO_CACHE=null;
@@ -873,15 +877,21 @@ async function buildSingleReportDocxBlob(r){
   let body=dLogoHeaderXml(logos);
   body+=dPar('รายงานการตรวจสอบระบบ TDAC',{sz:38,bold:true,color:'0b2f6b',align:'center',after:40});
   body+=dPar('Website (PC + Mobile) และ Kiosk · Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)',{sz:18,color:'374151',align:'center',after:180});
+  const webReady=(r.webPc?1:0)+(r.webMobile?1:0),webPct=Math.round(webReady/2*100);
   body+=dKvTable([
     ['วันที่ตรวจสอบ',dispDate(r.date)],
     ['รอบการตรวจสอบ',r.shift],
     ['ผู้ตรวจสอบ (OSO)',r.officer],
-    ['ความพร้อม (Readiness)',r.pct+'%   ('+r.ready+' / '+r.total+' เครื่องพร้อมใช้งาน)'],
+    ['ความพร้อม Kiosk',r.pct+'%   ('+r.ready+' / '+r.total+' เครื่องพร้อมใช้งาน)'],
+    ['ความพร้อม Website',webPct+'%   ('+webReady+' / 2 แพลตฟอร์มพร้อมใช้งาน)'],
     ['จัดทำเมื่อ',new Date().toLocaleString('th-TH')]
   ],3200,6800);
   body+=dKpiCards([['Kiosks Total',String(r.total),'เครื่อง'],['All Ready',String(r.ready),'เครื่อง'],['Not Ready',String(r.total-r.ready),'เครื่อง'],['Readiness',r.pct+'%','ความพร้อม']]);
-  body+=dKpiCards([['Website (PC)',r.webPc?'พร้อม':'ไม่พร้อม',r.webPc?'System Ready':'Not Ready'],['Website (Mobile)',r.webMobile?'พร้อม':'ไม่พร้อม',r.webMobile?'System Ready':'Not Ready']]);
+  body+=dKpiCards([
+    ['Website (PC)',r.webPc?'✔':'✘',r.webPc?'System Ready':'Not Ready',r.webPc?'15803d':'c0392b'],
+    ['Website (Mobile)',r.webMobile?'✔':'✘',r.webMobile?'System Ready':'Not Ready',r.webMobile?'15803d':'c0392b'],
+    ['Web Readiness',webPct+'%',webReady+' / 2 พร้อม',webPct>=100?'15803d':webPct>=50?'b9770e':'c0392b']
+  ]);
   body+=dHeading('Kiosk Checklist (IMM001–IMM020)');
   const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
     return [k.kiosk_id,k.system_ready?yes:no,k.rustdesk_ready?yes:no,k.network_ready?yes:no,ok?'Ready':'Not Ready',k.remark||''];});
