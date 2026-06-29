@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='7';
+const APP_VERSION='8';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -164,13 +164,41 @@ function kioskRowsHtml(){
 function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 function initPublicForm(){
   const body=$('pubKioskBody');if(body&&!body.children.length)body.innerHTML=kioskRowsHtml();
-  const d=$('pubDate');if(d&&!d.value){const t=new Date();d.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');}
-  updatePubDateLabel();updatePubSummary();
+  if(!$('pubDate').value)calSetDate(new Date());
+  updatePubSummary();
 }
+// ---------- ปฏิทินกำหนดเอง (แสดง DD/MM/YYYY ทุกเบราว์เซอร์) ----------
+const CAL_DOW=['อา','จ','อ','พ','พฤ','ศ','ส'];
+let calView=new Date(),calSel=null;
+function pad2(n){return String(n).padStart(2,'0');}
+function isoOf(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+function ddmmyyyy(iso){const a=String(iso||'').split('-');return a.length===3?(a[2]+'/'+a[1]+'/'+a[0]):'';}
+function calSetDate(d){
+  calSel=new Date(d.getFullYear(),d.getMonth(),d.getDate());calView=new Date(calSel);
+  $('pubDate').value=isoOf(calSel);
+  const t=$('pubDateText');if(t){t.textContent=ddmmyyyy($('pubDate').value);t.classList.remove('ph');}
+  if($('pubDateBtn'))$('pubDateBtn').classList.remove('invalidf');
+  updatePubDateLabel();
+}
+function calToggle(e){if(e)e.stopPropagation();const p=$('calPop');if(!p)return;if(p.classList.toggle('show'))calRender();}
+function calClose(){const p=$('calPop');if(p)p.classList.remove('show');}
+function calShift(d){calView=new Date(calView.getFullYear(),calView.getMonth()+d,1);calRender();}
+function calRender(){
+  const y=calView.getFullYear(),m=calView.getMonth();
+  $('calMY').textContent=THAI_MONTHS[m]+' '+(y+543);
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),todayIso=isoOf(new Date());
+  let h=CAL_DOW.map(d=>'<div class="cal-dow">'+d+'</div>').join('');
+  for(let i=0;i<first;i++)h+='<div></div>';
+  for(let dd=1;dd<=days;dd++){const iso=y+'-'+pad2(m+1)+'-'+pad2(dd);
+    h+='<div class="cal-day'+(iso===todayIso?' today':'')+(calSel&&iso===isoOf(calSel)?' sel':'')+'" onclick="calPick('+y+','+m+','+dd+')">'+dd+'</div>';}
+  $('calGrid').innerHTML=h;
+}
+function calPick(y,m,d){calSetDate(new Date(y,m,d));calClose();}
+document.addEventListener('click',function(e){const w=$('pubDateWrap');if(w&&!w.contains(e.target))calClose();});
 // แสดงวันที่ที่เลือกเป็นรูปแบบ DD/MM/YYYY (เช่น 28/06/2026)
 function updatePubDateLabel(){
   const el=$('pubDateFmt');if(!el)return;const v=($('pubDate').value||'');
-  if(!v){el.textContent='';return;}const a=v.split('-');el.textContent='📅 '+a[2]+'/'+a[1]+'/'+a[0];
+  el.textContent=v?('📅 '+ddmmyyyy(v)):'';
 }
 // คู่มือการใช้งาน (โหลด guide.html ใน iframe เมื่อเปิดครั้งแรก)
 function openGuide(){const f=$('guideFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src','guide.html?v='+APP_VERSION);$('guideModal').classList.add('open');}
@@ -231,7 +259,7 @@ function fillOfficerEmail(){
 async function submitPublic(){
   if(!sb)return toast('ยังไม่ได้ตั้งค่า Supabase',true);
   const date=$('pubDate').value,shift=$('pubShift').value,officer=$('pubOfficer').value.trim();
-  [['pubDate',date],['pubShift',shift],['pubOfficer',officer]].forEach(([id,v])=>{const el=$(id);if(el)el.classList.toggle('invalidf',!v);});
+  [['pubDateBtn',date],['pubShift',shift],['pubOfficer',officer]].forEach(([id,v])=>{const el=$(id);if(el)el.classList.toggle('invalidf',!v);});
   if(!date)return toast('กรุณาเลือกวันที่ตรวจสอบ',true);
   if(!shift)return toast('กรุณาเลือกรอบการตรวจสอบ',true);
   if(!officer)return toast('กรุณาเลือกชื่อเจ้าหน้าที่ผู้ตรวจสอบ',true);
@@ -260,7 +288,8 @@ async function submitPublic(){
         const msg='เรียน '+officer+'\n\nแนบไฟล์รายงานการตรวจสอบระบบ TDAC ประจำ '+dispDate(date)+' รอบ '+shift+
           '\nความพร้อม (Readiness): '+pct+'%  ('+ready+'/'+KIOSK_COUNT+' เครื่องพร้อมใช้งาน)'+
           '\n\nระบบ OSO-TDAC Operational Report';
-        const fn=String(date).replace(/-/g,'')+'-OSO-TDAC-Report.docx';
+        // ชื่อไฟล์: DDMMYYYY + _1 (รอบกลางวัน IMP/D) หรือ _2 (รอบกลางคืน IMP/N)
+        const da=date.split('-');const fn=da[2]+da[1]+da[0]+(shift.indexOf('IMP/D')>=0?'_1':'_2')+'-OSO-TDAC-Report.docx';
         // ส่งไบต์ DOCX ผ่านพารามิเตอร์ pdfBase64 เดิม — edge function แนบไฟล์ตามชื่อ .docx ให้เอง (ไม่ต้อง redeploy)
         const r=await callFn('send-public-report',{to:email,subject:'รายงานการตรวจสอบระบบ TDAC '+dispDate(date)+' ('+shift+')',filename:fn,pdfBase64:b64,message:msg});
         if(r.error)toast('บันทึกรายงานแล้ว แต่ส่งอีเมลไม่สำเร็จ: '+r.error,true);
@@ -276,7 +305,7 @@ function resetPublic(){
   $('pubWebPc').checked=false;$('pubWebMobile').checked=false;$('lblWebPc').classList.remove('on');$('lblWebMobile').classList.remove('on');
   $('pubWebPcRemark').value='';$('pubWebMobileRemark').value='';
   $('pubKioskBody').innerHTML=kioskRowsHtml();
-  const t=new Date();$('pubDate').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  calSetDate(new Date());
   updatePubSummary();
   $('pubThanks').classList.add('hidden');$('pubForm').style.display='flex';window.scrollTo(0,0);
 }

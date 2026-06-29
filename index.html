@@ -139,6 +139,23 @@
   .pub-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
   .pub-badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.34);border-radius:20px;padding:4px 13px;font-size:12px;font-weight:600}
   .pub-badge.gold{background:var(--accent);border-color:var(--accent);color:#3a2e08}
+  /* ===== custom date picker (DD/MM/YYYY) ===== */
+  .datewrap{position:relative}
+  .datebtn{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;background:#fff}
+  .datephd{color:var(--text)}.datephd.ph{color:#94a3b8}
+  .datecal{margin-left:auto;font-size:17px}
+  .calpop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:30;background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:var(--shadow);padding:12px;width:300px;max-width:92vw}
+  .calpop.show{display:block}
+  .calnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .calmy{font-weight:800;color:var(--navy);font-size:14px}
+  .calnavbtn{width:34px;height:34px;border-radius:9px;background:var(--panel2);color:var(--navy);font-size:18px;font-weight:700;cursor:pointer;line-height:1}
+  .calnavbtn:hover{background:#e3edfb}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal-dow{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:4px 0}
+  .cal-day{text-align:center;padding:9px 0;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--text)}
+  .cal-day:hover{background:var(--panel2)}
+  .cal-day.today{outline:1.5px solid var(--primary);outline-offset:-1.5px}
+  .cal-day.sel{background:var(--primary);color:#fff}
   .pub-guide-btn{margin-top:4px;background:#fff;color:var(--navy);border:0;border-radius:999px;padding:10px 22px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 8px 20px rgba(4,16,40,.28);transition:.15s}
   .pub-guide-btn:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(4,16,40,.34)}
   .pub-login-top{position:absolute;top:16px;right:16px;z-index:2;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:13px}
@@ -234,7 +251,17 @@
           <div class="card-h">📋 ข้อมูลการตรวจสอบ</div>
           <div class="card-b">
             <div class="form-grid">
-              <div class="field"><label class="label">วันที่ตรวจสอบ<span class="req">*</span></label><input type="date" class="input" id="pubDate" onchange="updatePubDateLabel()"><div class="mini" id="pubDateFmt" style="margin-top:5px;font-weight:600;color:var(--primary-d)"></div></div>
+              <div class="field"><label class="label">วันที่ตรวจสอบ<span class="req">*</span></label>
+                <div class="datewrap" id="pubDateWrap">
+                  <button type="button" class="input datebtn" id="pubDateBtn" onclick="calToggle(event)"><span id="pubDateText" class="datephd ph">เลือกวันที่ (วว/ดด/ปปปป)</span><span class="datecal">📅</span></button>
+                  <div class="calpop" id="calPop">
+                    <div class="calnav"><button type="button" class="calnavbtn" onclick="calShift(-1)">‹</button><span class="calmy" id="calMY"></span><button type="button" class="calnavbtn" onclick="calShift(1)">›</button></div>
+                    <div class="calgrid" id="calGrid"></div>
+                  </div>
+                </div>
+                <input type="hidden" id="pubDate">
+                <div class="mini" id="pubDateFmt" style="margin-top:5px;font-weight:600;color:var(--primary-d)"></div>
+              </div>
               <div class="field"><label class="label">รอบการตรวจสอบ<span class="req">*</span></label>
                 <select class="input" id="pubShift">
                   <option value="">— เลือกรอบ —</option>
@@ -247,9 +274,9 @@
               <div class="field"><label class="label">ชื่อเจ้าหน้าที่ Onsite Support ผู้ทำการตรวจสอบ<span class="req">*</span></label>
                 <select class="input" id="pubOfficer" onchange="fillOfficerEmail()"><option value="">— เลือกชื่อเจ้าหน้าที่ —</option></select>
               </div>
-              <div class="field"><label class="label">อีเมลรับรายงาน PDF (ส่งให้เจ้าหน้าที่อัตโนมัติ)</label>
+              <div class="field"><label class="label">อีเมลรับรายงาน DOCX (ส่งให้เจ้าหน้าที่อัตโนมัติ)</label>
                 <input type="email" class="input" id="pubEmail" placeholder="เลือกชื่อแล้วอีเมลจะเติมให้อัตโนมัติ">
-                <div class="mini" style="margin-top:4px">เมื่อส่งรายงาน ระบบจะแนบไฟล์ PDF (A4) ส่งให้อีเมลนี้</div>
+                <div class="mini" style="margin-top:4px">เมื่อส่งรายงาน ระบบจะแนบไฟล์ DOCX ส่งให้อีเมลนี้</div>
               </div>
             </div>
           </div>
@@ -475,9 +502,9 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=7"></script>
+<script src="config.js?v=8"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
