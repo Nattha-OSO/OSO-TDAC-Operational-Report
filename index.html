@@ -286,7 +286,7 @@
         <div class="card">
           <div class="card-h">🖥️ Kiosk Checklist — IMM001–IMM020</div>
           <div class="card-b" style="padding:0">
-            <div class="notice" style="margin:14px 14px 0">ℹ️ <span><strong>หมายเหตุ:</strong> ก่อนเข้าตรวจสอบเครื่อง Kiosk เจ้าหน้าที่ Onsite Support ต้องขออนุญาตเจ้าหน้าที่ ตม. ที่ประจำอยู่บริเวณนั้นทุกครั้ง</span></div>
+            <div class="notice" style="margin:14px 14px 0">ℹ️ <span><strong>หมายเหตุ:</strong> ก่อนเข้าตรวจสอบเครื่อง Kiosk เจ้าหน้าที่ Onsite Support ต้องขออนุญาตเจ้าหน้าที่ ตม. ที่ประจำอยู่บริเวณนั้นทุกครั้ง · เครื่อง/แพลตฟอร์มที่<strong>ยังไม่พร้อม (ไม่ติ๊กครบ)</strong> ต้องระบุเหตุผลในช่อง Remark</span></div>
             <div style="overflow:auto;padding:14px">
               <table class="ktable">
                 <thead><tr><th style="width:96px">Kiosk ID</th><th>System / RustDesk / Network</th><th style="min-width:170px">Remark</th></tr></thead>
@@ -306,10 +306,10 @@
                 <tbody>
                   <tr><td class="kid">Website (PC)</td>
                     <td><label class="chk" id="lblWebPc"><input type="checkbox" id="pubWebPc" onchange="togglePubWeb(this,'lblWebPc')"><span>System Ready</span></label></td>
-                    <td><textarea class="remark-input" id="pubWebPcRemark" maxlength="200" placeholder="ใส่รายละเอียด (ถ้ามี)" oninput="autoGrow(this)"></textarea></td></tr>
+                    <td><textarea class="remark-input" id="pubWebPcRemark" maxlength="200" placeholder="ใส่รายละเอียด (จำเป็นหากยังไม่พร้อม)" oninput="autoGrow(this);this.classList.remove('invalidf')"></textarea></td></tr>
                   <tr><td class="kid">Website (Mobile)</td>
                     <td><label class="chk" id="lblWebMobile"><input type="checkbox" id="pubWebMobile" onchange="togglePubWeb(this,'lblWebMobile')"><span>System Ready</span></label></td>
-                    <td><textarea class="remark-input" id="pubWebMobileRemark" maxlength="200" placeholder="ใส่รายละเอียด (ถ้ามี)" oninput="autoGrow(this)"></textarea></td></tr>
+                    <td><textarea class="remark-input" id="pubWebMobileRemark" maxlength="200" placeholder="ใส่รายละเอียด (จำเป็นหากยังไม่พร้อม)" oninput="autoGrow(this);this.classList.remove('invalidf')"></textarea></td></tr>
                 </tbody>
               </table>
             </div>
@@ -502,9 +502,9 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=8"></script>
+<script src="config.js?v=9"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

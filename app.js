@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='8';
+const APP_VERSION='9';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -159,7 +159,7 @@ function kioskRowsHtml(){
       SUBSYS.map(s=>'<label class="chk"><input type="checkbox" data-kiosk="'+id+'" data-type="'+s.t+'" onchange="kioskChanged(this)"><span>'+s.l+'</span></label>').join('')+
       '<button type="button" class="btn-all" data-kiosk="'+id+'" onclick="kioskCheckAll(this)">Check All</button>'+
     '</div></td>'+
-    '<td><textarea class="remark-input" data-kiosk="'+id+'" data-type="remark" maxlength="200" placeholder="ใส่รายละเอียด (ถ้ามี)" oninput="autoGrow(this)"></textarea></td></tr>').join('');
+    '<td><textarea class="remark-input" data-kiosk="'+id+'" data-type="remark" maxlength="200" placeholder="ใส่รายละเอียด (จำเป็นหากยังไม่พร้อม)" oninput="autoGrow(this);this.classList.remove(\'invalidf\')"></textarea></td></tr>').join('');
 }
 function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 function initPublicForm(){
@@ -203,12 +203,14 @@ function updatePubDateLabel(){
 // คู่มือการใช้งาน (โหลด guide.html ใน iframe เมื่อเปิดครั้งแรก)
 function openGuide(){const f=$('guideFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src','guide.html?v='+APP_VERSION);$('guideModal').classList.add('open');}
 function closeGuide(){$('guideModal').classList.remove('open');}
-function togglePubWeb(cb,lblId){const l=$(lblId);if(l)l.classList.toggle('on',cb.checked);}
+function togglePubWeb(cb,lblId){const l=$(lblId);if(l)l.classList.toggle('on',cb.checked);if(cb.checked){const r=$(lblId==='lblWebPc'?'pubWebPcRemark':'pubWebMobileRemark');if(r)r.classList.remove('invalidf');}}
 // อัปเดตคลาส/ปุ่ม Check All ของแถวเมื่อ checkbox เปลี่ยน
 function kioskChanged(el){
   el.closest('.chk').classList.toggle('on',el.checked);
   const body=el.closest('tbody'),id=el.dataset.kiosk;
   syncRowBtn(body,id);
+  // ถ้าติ๊กครบ (Ready) แล้ว ให้ปลดไฮไลต์แดงของ Remark ที่เคยบังคับ
+  if(rowBoxes(body,id).every(b=>b&&b.checked)){const r=body.querySelector('textarea[data-kiosk="'+id+'"][data-type="remark"]');if(r)r.classList.remove('invalidf');}
   if(body.id==='pubKioskBody')updatePubSummary();
 }
 function rowBoxes(body,id){return SUBSYS.map(s=>body.querySelector('input[data-kiosk="'+id+'"][data-type="'+s.t+'"]'));}
@@ -265,6 +267,14 @@ async function submitPublic(){
   if(!officer)return toast('กรุณาเลือกชื่อเจ้าหน้าที่ผู้ตรวจสอบ',true);
   const kiosks=readKiosks('pubKioskBody'),ready=kioskReadyCount(kiosks),pct=Math.round(ready/KIOSK_COUNT*100);
   const email=($('pubEmail').value||'').trim();
+  // ── บังคับใส่ Remark สำหรับเครื่อง/แพลตฟอร์มที่ยังไม่ติ๊กครบ (Not Ready) ──
+  document.querySelectorAll('#pubForm .remark-input.invalidf').forEach(el=>el.classList.remove('invalidf'));
+  let firstBad=null;const markBad=el=>{if(el){el.classList.add('invalidf');if(!firstBad)firstBad=el;}};
+  kiosks.forEach(k=>{const okk=k.system_ready&&k.rustdesk_ready&&k.network_ready;
+    if(!okk&&!(k.remark||'').trim())markBad($('pubKioskBody').querySelector('textarea[data-kiosk="'+k.kiosk_id+'"][data-type="remark"]'));});
+  if(!$('pubWebPc').checked&&!($('pubWebPcRemark').value||'').trim())markBad($('pubWebPcRemark'));
+  if(!$('pubWebMobile').checked&&!($('pubWebMobileRemark').value||'').trim())markBad($('pubWebMobileRemark'));
+  if(firstBad){toast('รายการที่ยังไม่ติ๊ก (Not Ready) ต้องระบุ Remark เหตุผลให้ครบทุกรายการ',true);firstBad.scrollIntoView({behavior:'smooth',block:'center'});try{firstBad.focus();}catch(_){}return;}
   const report={
     report_date:date,shift,officer,
     web_pc_ready:!!$('pubWebPc').checked,web_pc_remark:($('pubWebPcRemark').value||'').trim()||null,
