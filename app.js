@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='6';
+const APP_VERSION='7';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -435,6 +435,7 @@ function renderDashboard(){
         '<div class="exec-item"><b>Website (PC)</b><span class="tag '+(L?(L.webPc?'excellent':'critical'):'neutral')+'">'+(L?(L.webPc?'System Ready':'Not Ready'):'-')+'</span><div class="mini" style="margin-top:8px">ภาพรวมพร้อม '+(s.webPcPct||0)+'% ของรอบ</div></div>'+
         '<div class="exec-item"><b>Website (Mobile)</b><span class="tag '+(L?(L.webMobile?'excellent':'critical'):'neutral')+'">'+(L?(L.webMobile?'System Ready':'Not Ready'):'-')+'</span><div class="mini" style="margin-top:8px">ภาพรวมพร้อม '+(s.webMobilePct||0)+'% ของรอบ</div></div></div></div>'+
       '<div class="panel"><div class="panel-head"><div><div class="panel-title">ข้อเสนอแนะถัดไป</div><div class="mini">แนวทางการติดตาม</div></div></div><div class="next-steps">'+dashSteps(s)+'</div></div></div>'+
+    '<div class="panel" style="margin-bottom:16px"><div class="panel-head"><div><div class="panel-title">แนวโน้ม Readiness (รอบล่าสุด)</div><div class="mini">% ความพร้อมของแต่ละรอบ · เขียว=สูง · แดง=ต่ำ</div></div></div>'+trendChartSvg(data.reports)+'</div>'+
     '<div class="dash grid">'+
       '<div class="panel"><div class="panel-head"><div><div class="panel-title">รายงานล่าสุด</div><div class="mini">8 รายการล่าสุด</div></div><button class="btn" onclick="view=\'reports\';render()">ดูทั้งหมด</button></div>'+
         '<div class="table-wrap"><table style="min-width:auto"><thead><tr><th>วันที่</th><th>รอบ</th><th>ผู้ตรวจ</th><th>Readiness</th></tr></thead><tbody>'+
@@ -448,6 +449,23 @@ function renderDashboard(){
     '</div>';
 }
 function topFail(f){const a=[['System',f.system],['RustDesk',f.rustdesk],['Network',f.network]].filter(x=>x[1]>0).sort((x,y)=>y[1]-x[1]);return a.length?a.map(x=>x[0]+'('+x[1]+')').slice(0,2).join(', '):'-';}
+// กราฟแท่งแนวโน้ม Readiness (รอบล่าสุดสูงสุด 14 รอบ) — SVG ปรับขนาดตามจอ
+function trendChartSvg(reports){
+  const arr=(reports||[]).slice(0,14).reverse();
+  if(!arr.length)return '<div class="empty">ยังไม่มีข้อมูล</div>';
+  const W=760,H=250,padL=32,padR=12,padT=16,padB=50,cw=W-padL-padR,ch=H-padT-padB;
+  const n=arr.length,slot=cw/n,bw=Math.min(42,slot*0.62);
+  const col=p=>p>=95?'#16a34a':p>=85?'#0ea5e9':p>=70?'#f59e0b':p>=50?'#fb7185':'#ef4444';
+  let g='';
+  for(let i=0;i<=5;i++){const y=padT+ch-ch*i/5;g+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#e7edf7" stroke-width="1"/><text x="'+(padL-6)+'" y="'+(y+3.5)+'" text-anchor="end" font-size="10" fill="#94a3b8">'+(i*20)+'</text>';}
+  arr.forEach((r,i)=>{const x=padL+slot*i+slot/2,bh=Math.max(2,ch*r.pct/100),y=padT+ch-bh;
+    const d=parseDate(r.date),lbl=d?(String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')):'';
+    g+='<rect x="'+(x-bw/2)+'" y="'+y+'" width="'+bw+'" height="'+bh+'" rx="3" fill="'+col(r.pct)+'"><title>'+esc(dispDate(r.date))+' · '+esc(r.shift)+' = '+r.pct+'%</title></rect>'+
+      '<text x="'+x+'" y="'+(y-4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="#0b2f6b">'+r.pct+'</text>'+
+      '<text x="'+x+'" y="'+(padT+ch+15)+'" text-anchor="middle" font-size="9.5" fill="#6a7d9b">'+lbl+'</text>'+
+      '<text x="'+x+'" y="'+(padT+ch+27)+'" text-anchor="middle" font-size="8.5" fill="#9aa7bd">'+(String(r.shift).indexOf('IMP/D')>=0?'กลางวัน':'กลางคืน')+'</text>';});
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-height:270px;display:block">'+g+'</svg>';
+}
 function barList(rows,c1,c2){const max=Math.max(1,...rows.map(x=>x[1]));return rows.map(([k,v])=>'<div class="kpi-line"><span>'+esc(k||'-')+'</span><b>'+v+'</b></div><div class="bar" style="margin-bottom:8px"><div class="fill" style="width:'+Math.round(v/max*100)+'%;background:linear-gradient(90deg,'+c1+','+c2+')"></div></div>').join('')||'<div class="empty">ไม่มีข้อมูล</div>';}
 function dashSteps(s){const steps=[];
   steps.push('ตรวจสอบระบบ TDAC ให้ครบทุกกะ (IMP/D และ IMP/N) และบันทึกรายงานทุกครั้ง');
@@ -774,6 +792,28 @@ function dKpiCards(cards){
   const mk=(arr,o)=>'<w:tr>'+arr.map(t=>'<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:shd w:val="clear" w:color="auto" w:fill="F2F7FF"/></w:tcPr>'+dCellPar(t,o)+'</w:tc>').join('')+'</w:tr>';
   return '<w:tbl><w:tblPr><w:tblW w:w="'+(w*cards.length)+'" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="DCE5F2"/><w:left w:val="single" w:sz="4" w:color="DCE5F2"/><w:bottom w:val="single" w:sz="4" w:color="DCE5F2"/><w:right w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideH w:val="single" w:sz="4" w:color="DCE5F2"/><w:insideV w:val="single" w:sz="4" w:color="DCE5F2"/></w:tblBorders></w:tblPr>'+grid+mk(cards.map(c=>c[0]),{sz:18,color:'6a7d9b',align:'center'})+mk(cards.map(c=>c[1]),{sz:34,bold:true,color:'0b2f6b',align:'center'})+mk(cards.map(c=>c[2]),{sz:18,color:'6a7d9b',align:'center'})+'</w:tbl>'+dPar('',{after:80});
 }
+// โหลดไบต์โลโก้ (cache) สำหรับฝังใน DOCX
+let LOGO_CACHE=null;
+async function getLogoBytes(){
+  if(LOGO_CACHE)return LOGO_CACHE;
+  try{const f=async u=>new Uint8Array(await (await fetch(u)).arrayBuffer());
+    LOGO_CACHE={tdac:await f('assets/logo-tdac.png'),somapa:await f('assets/logo-somapa.png')};
+  }catch(e){LOGO_CACHE={};}
+  return LOGO_CACHE;
+}
+// แถวโลโก้ส่วนหัวเอกสาร DOCX (คืน '' ถ้าโหลดโลโก้ไม่ได้)
+function dLogoHeaderXml(logos){
+  if(!logos||!logos.tdac||!logos.somapa)return '';
+  const cy=430000;  // สูง ~12 มม.
+  const pic=(rid,id,cx,name)=>'<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+cx+'" cy="'+cy+'"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="'+id+'" name="'+name+'"/><wp:cNvGraphicFramePr/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+  return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr>'+
+    pic('rIdLogo1',101,Math.round(cy*2.64),'logo-tdac')+
+    '<w:r><w:rPr><w:rFonts w:ascii="TH Sarabun New" w:hAnsi="TH Sarabun New"/></w:rPr><w:t xml:space="preserve">       </w:t></w:r>'+
+    pic('rIdLogo2',102,Math.round(cy*2.97),'logo-somapa')+'</w:p>';
+}
+const D_LOGO_RELS='<Relationship Id="rIdLogo1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo-tdac.png"/><Relationship Id="rIdLogo2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo-somapa.png"/>';
+function addLogoMedia(wordFolder,logos){if(logos&&logos.tdac&&logos.somapa){const m=wordFolder.folder('media');m.file('logo-tdac.png',logos.tdac);m.file('logo-somapa.png',logos.somapa);}}
+
 // ตารางคีย์-ค่า (ไม่มีแถวหัว) — คอลัมน์ซ้ายเป็นป้ายชื่อ
 function dKvTable(pairs,w1,w2){
   const borders='<w:tblBorders><w:top w:val="single" w:sz="4" w:color="D0D7E5"/><w:left w:val="single" w:sz="4" w:color="D0D7E5"/><w:bottom w:val="single" w:sz="4" w:color="D0D7E5"/><w:right w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideH w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideV w:val="single" w:sz="4" w:color="D0D7E5"/></w:tblBorders>';
@@ -786,7 +826,8 @@ function dKvTable(pairs,w1,w2){
 async function buildSingleReportDocxBlob(r){
   if(typeof JSZip==='undefined'){toast('โหลด JSZip ไม่สำเร็จ',true);return null;}
   const yes='✔',no='✘';   // ✔ / ✘
-  let body='';
+  const logos=await getLogoBytes();
+  let body=dLogoHeaderXml(logos);
   body+=dPar('รายงานการตรวจสอบระบบ TDAC',{sz:38,bold:true,color:'0b2f6b',align:'center',after:40});
   body+=dPar('Website (PC + Mobile) และ Kiosk · Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)',{sz:18,color:'374151',align:'center',after:180});
   body+=dKvTable([
@@ -807,13 +848,16 @@ async function buildSingleReportDocxBlob(r){
     ['Website (Mobile)',r.webMobile?yes:no,r.webMobileRemark||'']],[2700,2200,5100]);
   body+=dHeading('รายละเอียดการรับแจ้งปัญหา / ข้อเสนอแนะ');
   body+=dPar(r.issue||'— ไม่มี —',{fill:'F4F6F9'});
-  const docXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="850" w:bottom="900" w:left="850"/></w:sectPr></w:body></w:document>';
-  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+  const hasLogo=!!(logos&&logos.tdac&&logos.somapa);
+  const docXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>'+body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="850" w:bottom="900" w:left="850"/></w:sectPr></w:body></w:document>';
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  const drels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+D_LOGO_RELS+'</Relationships>';
   const zip=new JSZip();
   zip.file('[Content_Types].xml',ct);
   zip.folder('_rels').file('.rels',rels);
-  zip.folder('word').file('document.xml',docXml);
+  const wordF=zip.folder('word');wordF.file('document.xml',docXml);
+  if(hasLogo){wordF.folder('_rels').file('document.xml.rels',drels);addLogoMedia(wordF,logos);}
   return await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
 // กราฟแท่ง: bars=[{label,value,color}]
@@ -847,8 +891,9 @@ async function buildReportDocxBlob(start,end,word,label){
   const now=new Date();await ensureFresh();
   const reports=periodReports(start,end),s=summarize(reports);
   const bars=problemBars(reports);const hasChart=bars.length>0;
+  const logos=await getLogoBytes();const hasLogo=!!(logos&&logos.tdac&&logos.somapa);
   toast('กำลังสร้าง DOCX...');
-  let body='';
+  let body=dLogoHeaderXml(logos);
   body+=dPar('รายงานการตรวจสอบระบบ TDAC (Website + Kiosk) '+word+' '+label,{sz:34,bold:true,color:'111827',align:'center',after:60});
   body+=dPar('Onsite Support Officer · ท่าอากาศยานสุวรรณภูมิ (BKK)',{sz:20,color:'374151',align:'center',after:200});
   body+=dTable([['รอบรายงาน',label],['วันที่จัดทำ',now.toLocaleString('th-TH')],['จัดทำโดย',user.displayName||user.email],['แหล่งข้อมูล','OSO-TDAC Operational Report (Supabase)']],[2600,6400],'F2F7FF');
@@ -884,12 +929,13 @@ async function buildReportDocxBlob(start,end,word,label){
   const docXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>'+body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="900" w:bottom="900" w:left="900"/></w:sectPr></w:body></w:document>';
   const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
-  const drels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chart1.png"/></Relationships>';
+  const drels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/chart1.png"/>'+(hasLogo?D_LOGO_RELS:'')+'</Relationships>';
   const zip=new JSZip();
   zip.file('[Content_Types].xml',ct);
   zip.folder('_rels').file('.rels',rels);
   const wordF=zip.folder('word');wordF.file('document.xml',docXml);wordF.folder('_rels').file('document.xml.rels',drels);
   wordF.folder('media').file('chart1.png',chartPng(hasChart?bars:[{label:'-',value:0,color:'#cbd5e1'}]));
+  addLogoMedia(wordF,logos);
   return await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
 async function makeReport(start,end,word,label,suffix){
