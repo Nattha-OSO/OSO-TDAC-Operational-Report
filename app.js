@@ -5,7 +5,7 @@
    ============================================================ */
 
 // ---------- ค่าคงที่ ----------
-const APP_VERSION='9';
+const APP_VERSION='10';
 const KIOSK_COUNT=20;
 const KIOSKS=Array.from({length:KIOSK_COUNT},(_,i)=>'IMM'+String(i+1).padStart(3,'0'));
 const SUBSYS=[{t:'system',l:'System'},{t:'rustdesk',l:'RustDesk'},{t:'network',l:'Network'}];
@@ -203,7 +203,7 @@ function updatePubDateLabel(){
 // คู่มือการใช้งาน (โหลด guide.html ใน iframe เมื่อเปิดครั้งแรก)
 function openGuide(){const f=$('guideFrame');if(f&&!f.getAttribute('src'))f.setAttribute('src','guide.html?v='+APP_VERSION);$('guideModal').classList.add('open');}
 function closeGuide(){$('guideModal').classList.remove('open');}
-function togglePubWeb(cb,lblId){const l=$(lblId);if(l)l.classList.toggle('on',cb.checked);if(cb.checked){const r=$(lblId==='lblWebPc'?'pubWebPcRemark':'pubWebMobileRemark');if(r)r.classList.remove('invalidf');}}
+function togglePubWeb(cb,lblId){const l=$(lblId);if(l)l.classList.toggle('on',cb.checked);if(cb.checked){const r=$(lblId==='lblWebPc'?'pubWebPcRemark':'pubWebMobileRemark');if(r)r.classList.remove('invalidf');}updatePubSummary();}
 // อัปเดตคลาส/ปุ่ม Check All ของแถวเมื่อ checkbox เปลี่ยน
 function kioskChanged(el){
   el.closest('.chk').classList.toggle('on',el.checked);
@@ -244,6 +244,8 @@ function kioskReadyCount(arr){return (arr||[]).filter(k=>k.system_ready&&k.rustd
 function updatePubSummary(){
   const ks=readKiosks('pubKioskBody'),ready=kioskReadyCount(ks),notReady=KIOSK_COUNT-ready;
   $('pubChipReady').textContent=ready;$('pubChipNot').textContent=notReady;$('pubChipPct').textContent=Math.round(ready/KIOSK_COUNT*100)+'%';
+  const setWeb=(id,ok)=>{const e=$(id);if(e){e.textContent=ok?'Ready':'Not Ready';e.style.color=ok?'var(--green)':'var(--rose)';}};
+  setWeb('pubChipWebPc',!!($('pubWebPc')&&$('pubWebPc').checked));setWeb('pubChipWebMobile',!!($('pubWebMobile')&&$('pubWebMobile').checked));
 }
 let officerEmailMap={};
 async function loadPublicOfficers(){
@@ -664,7 +666,9 @@ function openReportDetail(id){
     '<div class="field"><label class="label">รอบการตรวจสอบ</label><select class="input" id="rdShift"'+dis+'>'+SHIFTS.map(s=>'<option value="'+esc(s)+'"'+(s===r.shift?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select></div></div>'+
     '<div class="field"><label class="label">ชื่อเจ้าหน้าที่ผู้ตรวจสอบ</label><select class="input" id="rdOfficer"'+dis+'>'+
       [r.officer].concat((data.officers||[]).filter(n=>n!==r.officer)).map(n=>'<option value="'+esc(n)+'"'+(n===r.officer?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></div>'+
-    '<div class="sumbar" style="margin:6px 0 14px"><div class="sumchip"><div class="n">'+r.total+'</div><div class="l">Kiosks</div></div><div class="sumchip ok"><div class="n">'+r.ready+'</div><div class="l">Ready</div></div><div class="sumchip bad"><div class="n">'+r.notReady+'</div><div class="l">Not Ready</div></div><div class="sumchip pct"><div class="n">'+r.pct+'%</div><div class="l">Readiness</div></div></div>'+
+    '<div class="sumbar" style="margin:6px 0 14px;grid-template-columns:repeat(3,1fr)"><div class="sumchip"><div class="n">'+r.total+'</div><div class="l">Kiosks</div></div><div class="sumchip ok"><div class="n">'+r.ready+'</div><div class="l">Ready</div></div><div class="sumchip bad"><div class="n">'+r.notReady+'</div><div class="l">Not Ready</div></div><div class="sumchip pct"><div class="n">'+r.pct+'%</div><div class="l">Readiness</div></div>'+
+      '<div class="sumchip"><div class="n" style="font-size:16px;color:'+(r.webPc?'var(--green)':'var(--rose)')+'">'+(r.webPc?'Ready':'Not Ready')+'</div><div class="l">Website (PC)</div></div>'+
+      '<div class="sumchip"><div class="n" style="font-size:16px;color:'+(r.webMobile?'var(--green)':'var(--rose)')+'">'+(r.webMobile?'Ready':'Not Ready')+'</div><div class="l">Website (Mobile)</div></div></div>'+
     '<div style="overflow:auto"><table class="ktable"><thead><tr><th style="width:90px">Kiosk</th><th>System / RustDesk / Network</th><th style="min-width:150px">Remark</th></tr></thead><tbody id="rdKioskBody">'+kioskRowsHtml()+'</tbody></table></div>'+
     '<div style="overflow:auto;margin-top:12px"><table class="ktable"><thead><tr><th style="width:150px">Platform</th><th style="width:140px">System Ready</th><th>Remark</th></tr></thead><tbody>'+
       '<tr><td class="kid">Website (PC)</td><td><label class="chk'+(r.webPc?' on':'')+'"><input type="checkbox" id="rdWebPc"'+(r.webPc?' checked':'')+dis+' onchange="this.closest(\'.chk\').classList.toggle(\'on\',this.checked)"><span>System Ready</span></label></td><td><textarea class="remark-input" id="rdWebPcRemark"'+dis+' oninput="autoGrow(this)">'+esc(r.webPcRemark)+'</textarea></td></tr>'+
@@ -822,7 +826,7 @@ function dCellPar(text,o){o=o||{};const shd=o.fill?'<w:shd w:val="clear" w:color
 function dTable(rows,widths,headerFill){
   const grid='<w:tblGrid>'+widths.map(w=>'<w:gridCol w:w="'+w+'"/>').join('')+'</w:tblGrid>';
   const borders='<w:tblBorders><w:top w:val="single" w:sz="4" w:color="D0D7E5"/><w:left w:val="single" w:sz="4" w:color="D0D7E5"/><w:bottom w:val="single" w:sz="4" w:color="D0D7E5"/><w:right w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideH w:val="single" w:sz="4" w:color="D0D7E5"/><w:insideV w:val="single" w:sz="4" w:color="D0D7E5"/></w:tblBorders>';
-  const trs=rows.map((cells,ri)=>{const isH=ri===0;return '<w:tr>'+cells.map((cell,ci)=>{const fill=isH?(headerFill||'E8F0FC'):null;return '<w:tc><w:tcPr><w:tcW w:w="'+widths[ci]+'" w:type="dxa"/>'+(fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':'')+'<w:vAlign w:val="center"/></w:tcPr>'+dCellPar(cell,{sz:20,bold:isH,color:isH?'0b2f6b':'1f2937'})+'</w:tc>';}).join('')+'</w:tr>';}).join('');
+  const trs=rows.map((cells,ri)=>{const isH=ri===0;return '<w:tr>'+(isH?'<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>':'')+cells.map((cell,ci)=>{const fill=isH?(headerFill||'E8F0FC'):null;return '<w:tc><w:tcPr><w:tcW w:w="'+widths[ci]+'" w:type="dxa"/>'+(fill?'<w:shd w:val="clear" w:color="auto" w:fill="'+fill+'"/>':'')+'<w:vAlign w:val="center"/></w:tcPr>'+dCellPar(cell,{sz:20,bold:isH,color:isH?'0b2f6b':'1f2937'})+'</w:tc>';}).join('')+'</w:tr>';}).join('');
   return '<w:tbl><w:tblPr><w:tblW w:w="'+widths.reduce((a,b)=>a+b,0)+'" w:type="dxa"/><w:tblLayout w:type="fixed"/>'+borders+'</w:tblPr>'+grid+trs+'</w:tbl>'+dPar('',{after:60});
 }
 function dKpiCards(cards){
@@ -877,6 +881,7 @@ async function buildSingleReportDocxBlob(r){
     ['จัดทำเมื่อ',new Date().toLocaleString('th-TH')]
   ],3200,6800);
   body+=dKpiCards([['Kiosks Total',String(r.total),'เครื่อง'],['All Ready',String(r.ready),'เครื่อง'],['Not Ready',String(r.total-r.ready),'เครื่อง'],['Readiness',r.pct+'%','ความพร้อม']]);
+  body+=dKpiCards([['Website (PC)',r.webPc?'พร้อม':'ไม่พร้อม',r.webPc?'System Ready':'Not Ready'],['Website (Mobile)',r.webMobile?'พร้อม':'ไม่พร้อม',r.webMobile?'System Ready':'Not Ready']]);
   body+=dHeading('Kiosk Checklist (IMM001–IMM020)');
   const krows=(r.kiosks||[]).map(k=>{const ok=k.system_ready&&k.rustdesk_ready&&k.network_ready;
     return [k.kiosk_id,k.system_ready?yes:no,k.rustdesk_ready?yes:no,k.network_ready?yes:no,ok?'Ready':'Not Ready',k.remark||''];});

@@ -108,7 +108,10 @@
   .sumchip .n{font-size:26px;font-weight:800;color:var(--navy);line-height:1.1}
   .sumchip .l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px}
   .sumchip.ok .n{color:var(--green)}.sumchip.bad .n{color:var(--rose)}.sumchip.pct .n{color:var(--primary)}
-  @media(max-width:600px){.sumbar{grid-template-columns:repeat(2,1fr)}}
+  .sumchip .n.web{font-size:16px;line-height:1.4;padding:4px 0}
+  #pubSumbar{grid-template-columns:repeat(6,minmax(0,1fr))}
+  @media(max-width:600px){.sumbar{grid-template-columns:repeat(2,1fr)}#pubSumbar{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:601px) and (max-width:900px){#pubSumbar{grid-template-columns:repeat(3,1fr)}}
 
   /* ===== kiosk / checklist table ===== */
   .ktable{width:100%;border-collapse:collapse;min-width:560px}
@@ -244,6 +247,8 @@
           <div class="sumchip ok"><div class="n" id="pubChipReady">0</div><div class="l">All Ready</div></div>
           <div class="sumchip bad"><div class="n" id="pubChipNot">20</div><div class="l">Not Ready</div></div>
           <div class="sumchip pct"><div class="n" id="pubChipPct">0%</div><div class="l">Readiness</div></div>
+          <div class="sumchip"><div class="n web" id="pubChipWebPc">—</div><div class="l">Website (PC)</div></div>
+          <div class="sumchip"><div class="n web" id="pubChipWebMobile">—</div><div class="l">Website (Mobile)</div></div>
         </div>
 
         <!-- header -->
@@ -502,9 +507,9 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=9"></script>
+<script src="config.js?v=10"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
